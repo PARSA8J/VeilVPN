@@ -26,6 +26,46 @@ mod imp {
         }
     }
 
+    // ---- startup diagnostics log: %APPDATA%\Mehrveil\log.txt ----
+    fn boot_ms() -> u128 {
+        static BOOT: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+        BOOT.get_or_init(std::time::Instant::now).elapsed().as_millis()
+    }
+
+    pub fn log_line(msg: &str) {
+        let p = crate::store::data_dir().join("log.txt");
+        // keep the file bounded: drop oldest half above 32 KB
+        if let Ok(meta) = std::fs::metadata(&p) {
+            if meta.len() > 32768 {
+                if let Ok(old) = std::fs::read_to_string(&p) {
+                    let cut = old.len() / 2;
+                    let tail = old.split_off(cut);
+                    let _ = std::fs::write(&p, tail);
+                }
+            }
+        }
+        let line = format!("[{:>6}ms] {}\n", boot_ms(), msg);
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&p) {
+            use std::io::Write;
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
+
+    pub fn read_log_tail() -> String {
+        let p = crate::store::data_dir().join("log.txt");
+        match std::fs::read_to_string(&p) {
+            Ok(s) => {
+                let n = s.chars().count();
+                if n > 2200 {
+                    format!("(last part of {})\n{}", p.display(), s.chars().skip(n - 2200).collect::<String>())
+                } else {
+                    format!("{}\n", s)
+                }
+            }
+            Err(e) => format!("No log yet ({}).\nPath: {}", e, p.display()),
+        }
+    }
+
     const SUBKEY_STR: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 
     fn to_wide(s: &str) -> Vec<u16> {
@@ -184,6 +224,10 @@ mod imp {
     pub fn enable(_port: u16) {}
     pub fn disable() {}
     pub fn error_box(_title: &str, _text: &str) {}
+    pub fn log_line(_msg: &str) {}
+    pub fn read_log_tail() -> String {
+        String::new()
+    }
 }
 
 pub fn enable(port: u16) {
@@ -194,4 +238,10 @@ pub fn disable() {
 }
 pub fn error_box(title: &str, text: &str) {
     imp::error_box(title, text);
+}
+pub fn log_line(msg: &str) {
+    imp::log_line(msg);
+}
+pub fn read_log_tail() -> String {
+    imp::read_log_tail()
 }

@@ -182,7 +182,7 @@ public class MainActivity extends Activity {
                             o.put("platform", "android");
                             String ver;
             try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-            catch (Throwable t) { ver = "1.6.6"; }
+            catch (Throwable t) { ver = "1.6.7"; }
             o.put("version", ver);
                             o.put("features", new JSONObject()
                                     .put("kill", VpnController.get().killSwitch)

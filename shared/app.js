@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.6 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.7 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -410,7 +410,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.6 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.7 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();

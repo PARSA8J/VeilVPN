@@ -268,7 +268,7 @@ public final class VpnData {
             HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
             con.setConnectTimeout(timeoutMs);
             con.setReadTimeout(timeoutMs);
-            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.6");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.7");
             int code = con.getResponseCode();
             if (code != 200) { con.disconnect(); return null; }
             InputStream in = con.getInputStream();

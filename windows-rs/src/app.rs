@@ -22,6 +22,12 @@ pub struct VeilApp {
     pub show_settings: bool,
     pub sub_input: String,
     pub toast: Option<(String, f64, bool)>, // text, shown_at_sec, is_error
+
+    // boot presentation sequence (white-screen hardening):
+    // 0 = hidden, warming up; 1 = visible, waiting nudge; 2 = waiting restore; 3 = done
+    pub t0: std::time::Instant,
+    pub boot_step: u8,
+    pub first_logged: bool,
 }
 
 impl VeilApp {
@@ -63,7 +69,11 @@ impl VeilApp {
             config,
             engine,
             shared,
+            t0: std::time::Instant::now(),
+            boot_step: 0,
+            first_logged: false,
         };
+        crate::sysproxy::log_line("app constructor done (UI ready)");
         app
     }
 
@@ -114,6 +124,42 @@ fn setup_fonts(ctx: &Context) {
 
 impl eframe::App for VeilApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        // ---- boot presentation sequence (white-screen hardening) ----
+        // The window is created hidden. We keep pushing repaints so frames go
+        // through the GPU pipeline while hidden, then show the window, then
+        // nudge its size by 1px — the canonical un-stick for drivers that
+        // don't present until a resize (Intel HD / VM / RDP quirk).
+        if self.boot_step < 3 {
+            ctx.request_repaint_after(std::time::Duration::from_millis(90));
+            let t = self.t0.elapsed();
+            match self.boot_step {
+                0 if t > std::time::Duration::from_millis(350) => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    self.boot_step = 1;
+                    crate::sysproxy::log_line("window shown after warmup");
+                }
+                1 if t > std::time::Duration::from_millis(950) => {
+                    let cur = self.inner_size_pts(ctx);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(cur + egui::vec2(1.0, 1.0)));
+                    self.boot_step = 2;
+                    crate::sysproxy::log_line("resize nudge +1px");
+                }
+                2 if t > std::time::Duration::from_millis(1350) => {
+                    let cur = self.inner_size_pts(ctx);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize((cur - egui::vec2(1.0, 1.0)).max(egui::vec2(360.0, 580.0))));
+                    self.boot_step = 3;
+                    crate::sysproxy::log_line("resize restore — boot presentation done");
+                }
+                _ => {}
+            }
+        }
+
+        if !self.first_logged {
+            self.first_logged = true;
+            crate::sysproxy::log_line("first frame painted");
+        }
+
         // periodic repaint for timer / animations
         let st = self.shared.status();
         if matches!(st.phase, Phase::Connected | Phase::Connecting | Phase::Disconnecting) {
@@ -137,6 +183,17 @@ impl eframe::App for VeilApp {
                 self.ui_body(ui, ctx);
                 self.ui_toast(ui);
             });
+    }
+}
+
+impl VeilApp {
+    fn inner_size_pts(&self, ctx: &Context) -> egui::Vec2 {
+        ctx.input(|i| {
+            i.viewport()
+                .inner_rect
+                .map(|r| r.size())
+                .unwrap_or_else(|| egui::vec2(400.0, 680.0))
+        })
     }
 }
 
