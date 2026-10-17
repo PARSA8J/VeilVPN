@@ -37,7 +37,7 @@ mod imp {
         // keep the file bounded: drop oldest half above 32 KB
         if let Ok(meta) = std::fs::metadata(&p) {
             if meta.len() > 32768 {
-                if let Ok(old) = std::fs::read_to_string(&p) {
+                if let Ok(mut old) = std::fs::read_to_string(&p) {
                     let cut = old.len() / 2;
                     let tail = old.split_off(cut);
                     let _ = std::fs::write(&p, tail);
