@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VeilVPN — Free Open-Source VPN Client for Android & Windows | Liquid Glass UI</title>
+<meta name="description" content="VeilVPN is a free, open-source VPN client for Android and Windows with a professional Liquid Glass UI. VLESS, Trojan & Shadowsocks protocols, real server ping with country flags, built-in failover, no logs, 16 languages.">
+<meta name="keywords" content="VeilVPN, VPN, free VPN, open source VPN, VLESS, Trojan, Shadowsocks, Android VPN, Windows VPN, Liquid Glass, anti-censorship, internet freedom, v2ray client">
+<meta property="og:title" content="VeilVPN — See nothing. Be invisible.">
+<meta property="og:description" content="Free open-source VPN client for Android & Windows. Liquid Glass UI, real ping, country flags, no logs.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://parsa8j.github.io/VeilVPN/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Vazirmatn',Tahoma,sans-serif;
+    background:radial-gradient(circle at center,#f5f5f7,#e2e2e8);
+    min-height:100vh;color:#2c2c33;overflow-x:hidden;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .fx-layer{position:fixed;inset:0;filter:contrast(3);pointer-events:none;z-index:0}
+  .fx-layer::before{
+    content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 12% 10%,rgba(199,210,254,0.55) 0%,transparent 42%),
+      radial-gradient(circle at 88% 16%,rgba(165,243,252,0.50) 0%,transparent 42%),
+      radial-gradient(circle at 50% 100%,rgba(251,207,232,0.45) 0%,transparent 48%),
+      radial-gradient(circle at 85% 85%,rgba(196,240,214,0.40) 0%,transparent 45%);
+  }
+  .wrap{position:relative;z-index:1;max-width:860px;width:100%;padding:56px 22px 80px;text-align:center}
+  .glass{
+    background:rgba(255,255,255,.5);
+    border:1px double rgba(51,51,51,.08);
+    border-radius:28px;
+    box-shadow:
+      inset 2px -2px 1px -1px rgba(255,255,255,.9),
+      inset -2px 2px 1px -1px rgba(255,255,255,.9),
+      inset 6px -6px 1px -6px rgba(255,255,255,.55),
+      inset -6px 6px 1px -6px rgba(255,255,255,.55),
+      inset 0 0 2px rgba(0,0,0,.06),
+      0 4px 8px rgba(0,0,0,.08);
+    backdrop-filter:blur(2px) brightness(1.02);
+    padding:34px 30px;margin-bottom:26px;
+  }
+  .logo{font-size:52px;line-height:1;margin-bottom:12px}
+  h1{font-size:38px;font-weight:800;letter-spacing:-.02em;color:#1d1d24}
+  h1 span{background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{font-size:15px;color:#55555f;margin-top:8px;font-weight:500}
+  .badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:22px 0 6px}
+  .badge{font-size:11.5px;font-weight:600;color:#3e3e3e;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.9);border-radius:999px;padding:6px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(31,38,58,.08)}
+  .dl{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+  .start-btn{
+    display:inline-flex;align-items:center;gap:13px;
+    padding:12px 26px 12px 12px;border-radius:999px;text-decoration:none;
+    font-size:17px;font-weight:700;color:#3e3e3e;
+    background:rgba(255,255,255,.55);
+    border:1px double rgba(51,51,51,.08);
+    box-shadow:
+      inset 2px -2px 1px -1px rgba(255,255,255,.9),
+      inset -2px 2px 1px -1px rgba(255,255,255,.9),
+      inset 0 0 2px rgba(0,0,0,.05),
+      0 4px 8px rgba(0,0,0,.1);
+    backdrop-filter:blur(2px);
+    transition:all .3s cubic-bezier(.22,1,.36,1);
+  }
+  .start-btn:hover{transform:translateY(-3px)}
+  .start-btn .ic{
+    width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+    background:linear-gradient(145deg,#3e3e3e,#23262e);color:#fff;font-size:18px;
+    box-shadow:0 3px 8px rgba(35,38,46,.35),inset 0 1px 0 rgba(255,255,255,.28);
+    transition:transform .3s ease;
+  }
+  .start-btn:hover .ic{transform:scale(1.1)}
+  .start-btn:active{transform:scale(.94)}
+  .start-btn small{display:block;font-size:10.5px;font-weight:500;color:#77777f}
+  h2{font-size:19px;font-weight:700;color:#26262e;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;text-align:left}
+  .feat{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.85);border-radius:16px;padding:13px 15px;font-size:13px;color:#3a3a44;line-height:1.5}
+  .feat b{color:#1f1f27}
+  .feat .em{font-size:17px;flex-shrink:0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  td{padding:10px 12px;border-bottom:1px solid rgba(51,51,51,.06);text-align:left}
+  td:last-child,th:last-child{text-align:right}
+  a{color:#4f46e5}
+  .fa{direction:rtl;font-size:13.5px;color:#3a3a44;line-height:2}
+  .fa h2{text-align:right}
+  footer{font-size:11.5px;color:#8a8a92;margin-top:6px}
+  footer a{color:#6a6a72}
+</style>
+</head>
+<body>
+<div class="fx-layer"></div>
+<div class="wrap">
+
+  <section class="glass">
+    <div class="logo">🛡️</div>
+    <h1>Veil<span>VPN</span></h1>
+    <p class="tag">See nothing. Be invisible. — Free, open-source VPN client with a professional <b>Liquid Glass</b> UI.</p>
+    <div class="badges">
+      <span class="badge">✅ 100% Open Source (MIT)</span>
+      <span class="badge">🚫 No logs · No telemetry</span>
+      <span class="badge">🔒 TLS 1.3 · AEAD</span>
+      <span class="badge">🌍 16 languages</span>
+    </div>
+    <div class="dl">
+      <a class="start-btn" href="https://github.com/PARSA8J/VeilVPN/releases/latest/download/VeilVPN-1.6.1.apk">
+        <span class="ic">🤖</span><span>Android APK<small>Android 7.0+ · free</small></span>
+      </a>
+      <a class="start-btn" href="https://github.com/PARSA8J/VeilVPN/releases/latest/download/VeilVPN-1.6.1.exe">
+        <span class="ic">🪟</span><span>Windows EXE<small>Windows 10/11 64-bit · native Rust</small></span>
+      </a>
+    </div>
+  </section>
+
+  <section class="glass">
+    <h2>✨ Why VeilVPN?</h2>
+    <div class="grid">
+      <div class="feat"><span class="em">🪟</span><span><b>Liquid Glass UI</b> — layered translucent glass, specular highlights, real acrylic blur behind the native Windows window.</span></div>
+      <div class="feat"><span class="em">📡</span><span><b>Real servers, real ping</b> — every server is tested live; you see the country flag, country name and true latency. The 24 fastest are shown first.</span></div>
+      <div class="feat"><span class="em">📊</span><span><b>Real stats</b> — live download/upload from actual tunnel counters. Nothing is simulated.</span></div>
+      <div class="feat"><span class="em">🔁</span><span><b>Auto failover</b> — dead server? Up to 5 backups are tried automatically.</span></div>
+      <div class="feat"><span class="em">🔒</span><span><b>Anti DNS-leak</b> — DNS resolves inside the encrypted tunnel only.</span></div>
+      <div class="feat"><span class="em">⚙️</span><span><b>Protocols</b> — VLESS (+WS/TLS), Trojan, Shadowsocks AEAD. Add your own subscription.</span></div>
+    </div>
+  </section>
+
+  <section class="glass">
+    <h2>📥 Download — v1.6.1</h2>
+    <table>
+      <tr><td>🤖 <b>Android</b> (APK)</td><td><a href="https://github.com/PARSA8J/VeilVPN/releases/latest/download/VeilVPN-1.6.1.apk">VeilVPN-1.6.1.apk</a></td></tr>
+      <tr><td>🪟 <b>Windows</b> (EXE)</td><td><a href="https://github.com/PARSA8J/VeilVPN/releases/latest/download/VeilVPN-1.6.1.exe">VeilVPN-1.6.1.exe</a></td></tr>
+      <tr><td>🗂 <b>All releases</b></td><td><a href="https://github.com/PARSA8J/VeilVPN/releases">github.com/PARSA8J/VeilVPN/releases</a></td></tr>
+    </table>
+    <p style="font-size:12px;color:#77777f;margin-top:12px">Troubleshooting «App not installed»? → see the <a href="https://github.com/PARSA8J/VeilVPN#-install">README install guide</a>.</p>
+  </section>
+
+  <section class="glass fa">
+    <h2>🛡️ VeilVPN — کلاینت VPN شیشه‌ای، رایگان و متن‌باز</h2>
+    <p>VeilVPN یک کلاینت VPN کامل برای <b>اندروید و ویندوز</b> است با تم حرفه‌ای Liquid Glass، هستهٔ واقعی داخل خود برنامه (بدون نیاز به هیچ اپ دیگری)، لیست سرور با <b>پرچم و اسم کشور و پینگ واقعی</b>، فیلور خودکار، ضد DNS leak و ۱۶ زبان. سه روز آزمایش رایگان خودکار — کلید پریمیوم از ربات تلگرام <b dir="ltr">@veilvpnverifybot</b>.</p>
+    <p>پروتکل‌ها: VLESS (WS/TLS)، Trojan، Shadowsocks (AES-GCM) — بدون لاگ، بدون تلمتری، کاملاً متن‌باز (MIT).</p>
+  </section>
+
+  <footer>
+    Built with ❤️ by <a href="https://github.com/PARSA8J">PARSA8J</a> ·
+    <a href="https://github.com/PARSA8J/VeilVPN">GitHub Repository</a> · MIT License
+  </footer>
+</div>
+</body>
+</html>
