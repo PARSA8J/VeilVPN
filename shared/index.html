@@ -403,6 +403,21 @@
   .section-hint{
     font-size:10.5px;color:var(--ink-faint);font-weight:400;
   }
+  .showall{
+    font-size:10px;font-weight:600;
+    color:#3e3e3e;
+    background:rgba(255,255,255,.55);
+    border:1px solid rgba(255,255,255,.9);
+    border-radius:999px;
+    padding:4px 10px;
+    cursor:pointer;
+    font-family:inherit;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(31,38,58,.08);
+    transition:all .25s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .showall:hover{background:rgba(255,255,255,.85);transform:translateY(-1px)}
+  .showall:active{transform:scale(.95)}
 
   /* ============================================================
      SERVER LIST
@@ -676,7 +691,10 @@
     <section class="section glass">
       <div class="section-head">
         <span class="section-title" data-i18n="servers">Servers</span>
-        <span class="section-hint" id="serverHint">···</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="section-hint" id="serverHint">···</span>
+          <button class="showall" id="showAllBtn" style="display:none">Show all</button>
+        </span>
       </div>
       <div class="server-list" id="serverList"></div>
     </section>
@@ -699,7 +717,7 @@
       </div>
     </section>
 
-    <p class="foot"><span class="brand-mark">VEIL</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.5.1</span></p>
+    <p class="foot"><span class="brand-mark">VEIL</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.6.1</span></p>
   </main>
 
   <!-- LICENSE GATE -->

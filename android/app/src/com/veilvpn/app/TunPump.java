@@ -10,6 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Reads IP packets from TUN, dispatches TCP flows / DNS UDP, writes replies. */
 public class TunPump implements Runnable {
+    // REAL traffic counters: up = packets read from TUN (device -> tunnel),
+    // down = packets written to TUN (tunnel -> device). Reset per session.
+    private static volatile long upBytes = 0, downBytes = 0;
+    public static long upBytes()   { return upBytes; }
+    public static long downBytes() { return downBytes; }
+
     private final VpnService svc;
     private final ParcelFileDescriptor tun;
     private final FileInputStream in;
@@ -21,10 +27,11 @@ public class TunPump implements Runnable {
         this.svc = svc; this.tun = tun;
         this.in = new FileInputStream(tun.getFileDescriptor());
         this.out = new FileOutputStream(tun.getFileDescriptor());
+        upBytes = 0; downBytes = 0;
     }
 
     public void write(byte[] pkt) {
-        try { out.write(pkt); out.flush(); } catch (Throwable ignored) {}
+        try { out.write(pkt); out.flush(); downBytes += pkt.length; } catch (Throwable ignored) {}
     }
 
     private static long key(int sport, int dport) { return ((long) sport << 16) | dport; }
@@ -38,6 +45,7 @@ public class TunPump implements Runnable {
             while (running) {
                 int n = in.read(buf);
                 if (n <= 0) continue;
+                upBytes += n;
                 if ((buf[0] >> 4) == 4 && n >= 20) handleIp4(buf, n);
                 // IPv6 dropped (AAAA filtered by DnsAgent -> apps fall back to v4)
             }

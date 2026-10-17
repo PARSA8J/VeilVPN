@@ -23,7 +23,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: VeilVPN-Android
-          path: dist/VeilVPN-1.6.0.apk
+          path: dist/VeilVPN-1.6.1.apk
 
   windows:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: VeilVPN-Windows
-          path: dist/VeilVPN-1.6.0.exe
+          path: dist/VeilVPN-1.6.1.exe
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

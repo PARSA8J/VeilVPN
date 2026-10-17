@@ -1,4 +1,4 @@
-/* Veil VPN 1.5.1 — shared app logic (Android bridge / Windows local API / web demo) */
+/* Veil VPN 1.6.1 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -74,7 +74,7 @@ function ccFlag(cc){
 var state = {
   status:'disconnected', servers:[], selected:null, seconds:0, timers:[],
   lic:null, features:{kill:true,auto:true,adblock:false}, lang:null,
-  ipInfo:null, bootReady:false, lastError:null
+  ipInfo:null, bootReady:false, lastError:null, showAll:false, pingLoop:false
 };
 
 var app=document.getElementById('app'),
@@ -137,25 +137,43 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){retu
 function renderServers(){
   serverList.innerHTML='';
   if(!state.servers.length){
-    serverList.innerHTML='<div style="padding:16px;text-align:center;color:rgba(255,255,255,.35);font-size:12px">'+(state.status==='connecting'?'···':esc(window.t('no_servers')))+'</div>';
+    serverList.innerHTML='<div style="padding:16px;text-align:center;color:rgba(20,20,40,.4);font-size:12px">'+(state.status==='connecting'?'···':esc(window.t('no_servers')))+'</div>';
     serverHint.textContent=window.t('no_servers');
+    updateShowAllBtn();
     return;
   }
+  var tested=state.servers.filter(function(s){return s.ping!=null;});
+  var untested=state.servers.filter(function(s){return s.ping==null;});
+  var view = state.showAll ? state.servers
+           : (tested.length ? tested.slice(0,24) : state.servers.slice(0,24));
   var frag=document.createDocumentFragment();
-  state.servers.slice(0,120).forEach(function(s){
+  view.forEach(function(s){
     var b=document.createElement('button');
     b.className='server'+(state.selected&&s.id===state.selected.id?' active':'');
     b.type='button'; b.dataset.id=s.id;
     var nm=esc(s.name||ccName(s.cc)), ct=esc(s.city||ccCity(s.cc));
-    var pg=s.ping!=null? '<span class="server-ping '+pingClass(s.ping)+'"><span class="ping-dot"></span>'+s.ping+' ms</span>'
-                        : '<span class="server-ping"><span class="ping-dot"></span>···</span>';
+    var pg;
+    if(s.ping!=null) pg='<span class="server-ping '+pingClass(s.ping)+'"><span class="ping-dot"></span>'+s.ping+' ms</span>';
+    else if(s.dead)  pg='<span class="server-ping far"><span class="ping-dot"></span>—</span>';
+    else             pg='<span class="server-ping"><span class="ping-dot"></span>···</span>';
     b.innerHTML='<span class="server-flag">'+ccFlag(s.cc)+'</span>'+
       '<span class="server-info"><span class="server-name">'+nm+'</span><span class="server-city">'+ct+' · '+esc(s.p||'')+'</span></span>'+pg;
     b.addEventListener('click',function(){ selectServer(s.id); });
     frag.appendChild(b);
   });
   serverList.appendChild(frag);
-  serverHint.textContent = state.servers.length+' '+window.t('locations');
+  serverHint.textContent = state.showAll
+    ? state.servers.length+' '+window.t('locations')
+    : (untested.length ? view.length+' '+window.t('locations')+' · '+window.t('testing')
+                       : view.length+' '+window.t('locations'));
+  updateShowAllBtn();
+}
+function updateShowAllBtn(){
+  var btn=document.getElementById('showAllBtn');
+  if(!btn) return;
+  var show = state.servers.length>24;
+  btn.style.display = show ? '' : 'none';
+  btn.textContent = state.showAll ? window.t('show_fastest') : window.t('show_all')+' ('+state.servers.length+')';
 }
 function selectServer(id){
   var next=state.servers.find(function(s){return s.id===id;});
@@ -166,6 +184,36 @@ function selectServer(id){
   if(state.status==='connected'){ doDisconnect(true); connect(); }
   else if(state.status==='disconnected'){ updateIdleUI(); }
 }
+function sortServers(){
+  state.servers.sort(function(a,b){
+    var x=a.ping==null?9e9:a.ping, y=b.ping==null?9e9:b.ping;
+    return x-y;
+  });
+}
+/* REAL ping: keep testing every unmeasured node in small batches until done.
+   Nodes that fail twice are marked dead (shown as '—', never faked). */
+function pingMore(){
+  var need=state.servers.filter(function(s){return s.ping==null&&!s.dead&&!s.probing;})
+                       .slice(0,40);
+  if(!need.length){ state.pingLoop=false; return; }
+  state.pingLoop=true;
+  need.forEach(function(s){ s.probing=true; });
+  BRIDGE.call('pingBatch',{ids:need.map(function(s){return s.id;})}).then(function(r){
+    state.servers.forEach(function(s){
+      if(s.probing){ s.probing=false;
+        if(r&&r.pings&&r.pings[s.id]!=null) s.ping=r.pings[s.id];
+        else s.tries=(s.tries||0)+1;
+        if(s.ping==null&&(s.tries||0)>=2) s.dead=true;
+      }
+    });
+    sortServers();
+    if(state.selected) state.selected=state.servers.find(function(x){return x.id===state.selected.id;})||state.selected;
+    renderServers();
+    if(state.servers.some(function(s){return s.ping==null&&!s.dead;}))
+      setTimeout(pingMore,250);
+    else state.pingLoop=false;
+  }).catch(function(){ state.pingLoop=false; });
+}
 function onServers(list){
   state.servers=list||[];
   if(!state.servers.length){ renderServers(); return; }
@@ -175,14 +223,9 @@ function onServers(list){
   if(!sel && saved) sel=state.servers.find(function(s){return s.id===saved;});
   if(!sel) sel=state.servers.find(function(s){return s.ping!=null;}) || state.servers[0];
   state.selected=sel;
-  renderServers();
+  sortServers(); renderServers();
   if(state.bootReady) toast(state.servers.length+' '+window.t('servers_loaded'));
-  var need=state.servers.filter(function(s){return s.ping==null;}).slice(0,60).map(function(s){return s.id;});
-  if(need.length) BRIDGE.call('pingBatch',{ids:need}).then(function(r){
-    if(!r||!r.pings) return;
-    state.servers.forEach(function(s){ if(r.pings[s.id]!=null) s.ping=r.pings[s.id]; });
-    renderServers();
-  }).catch(function(){});
+  if(!state.pingLoop) pingMore();
 }
 
 /* ---------------- status / connect ---------------- */
@@ -197,24 +240,40 @@ function applyStatusClass(){
 function updateIdleUI(){
   connectTitle.textContent=window.t('tap_connect');
   var sel=state.selected;
-  connectSub.innerHTML = sel? window.t('selected')+': <span style="color:rgba(255,255,255,.7);font-weight:500">'+ccFlag(sel.cc)+' '+esc(ccName(sel.cc))+'</span>' : esc(window.t('slogan'));
+  connectSub.innerHTML = sel? window.t('selected')+': <span style="color:rgba(20,20,50,.65);font-weight:500">'+ccFlag(sel.cc)+' '+esc(ccName(sel.cc))+'</span>' : esc(window.t('slogan'));
   statusText.textContent=window.t('disconnected');
   setValue('ping','--','ms'); setValue('down','--','Mb'); setValue('up','--','Mb');
   ipLine.style.display='none';
 }
 function clearTimers(){ state.timers.forEach(clearInterval); state.timers=[]; }
+/* REAL live data: tunnel byte counters (delta => Mb/s) + true TCP ping to the
+   connected server, every 2s. If the core can't answer, we show '--' — never fake. */
 function startLiveData(){
   clearTimers(); state.seconds=0;
   state.timers.push(setInterval(function(){
     state.seconds++;
     connectSub.innerHTML = window.t('connected')+' · <span class="timer">'+fmtTime(state.seconds)+'</span>';
   },1000));
-  state.timers.push(setInterval(function(){
-    var base=(state.selected&&state.selected.ping)||30;
-    setValue('ping', Math.max(8, Math.round(base+rand(-4,6))), 'ms'); bump(statEls.ping);
-  },2000));
-  state.timers.push(setInterval(function(){ setValue('down', rand(18,86).toFixed(1),'Mb'); bump(statEls.down); },1700));
-  state.timers.push(setInterval(function(){ setValue('up', rand(6,32).toFixed(1),'Mb'); bump(statEls.up); },2100));
+  var last=null;
+  var poll=function(){
+    BRIDGE.call('stats',{}).then(function(st){
+      if(!st) return;
+      if(st.ping!=null){ setValue('ping', Math.round(st.ping), 'ms'); bump(statEls.ping); }
+      var now=Date.now();
+      if(last && st.down!=null && st.up!=null){
+        var dt=(now-last.t)/1000;
+        if(dt>=0.5){
+          var d=Math.max(0,(st.down-last.down)*8/dt/1e6);
+          var u=Math.max(0,(st.up-last.up)*8/dt/1e6);
+          setValue('down', d.toFixed(1),'Mb'); bump(statEls.down);
+          setValue('up', u.toFixed(1),'Mb'); bump(statEls.up);
+        }
+      }
+      if(st.down!=null&&st.up!=null) last={t:now,down:st.down,up:st.up};
+    }).catch(function(){});
+  };
+  poll();
+  state.timers.push(setInterval(poll,2000));
 }
 function connect(){
   if(state.status!=='disconnected') return;
@@ -398,7 +457,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.5.1 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.1 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();
@@ -422,15 +481,12 @@ function boot(){
     return BRIDGE.call('fetchServers',{});
   }).then(function(r){
     if(r&&r.servers&&r.servers.length){ onServers(r.servers); }
-    else { if(BRIDGE.platform==='web'){ onServers(DEMO); } }
-  }).catch(function(){ if(BRIDGE.platform==='web') onServers(DEMO); });
+  }).catch(function(){});
   if(BRIDGE.platform==='windows') winEvents();
 }
-var DEMO=[{id:'nl',p:'vless',cc:'NL',name:'Netherlands',city:'Amsterdam',ping:24},
-  {id:'de',p:'vless',cc:'DE',name:'Germany',city:'Frankfurt',ping:29},
-  {id:'gb',p:'trojan',cc:'GB',name:'United Kingdom',city:'London',ping:33},
-  {id:'us',p:'vless',cc:'US',name:'United States',city:'New York',ping:46},
-  {id:'sg',p:'trojan',cc:'SG',name:'Singapore',city:'Singapore',ping:78},
-  {id:'jp',p:'vless',cc:'JP',name:'Japan',city:'Tokyo',ping:97}];
+var showAllBtnEl=document.getElementById('showAllBtn');
+if(showAllBtnEl) showAllBtnEl.addEventListener('click',function(){
+  state.showAll=!state.showAll; renderServers();
+});
 boot();
 })();

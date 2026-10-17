@@ -45,12 +45,13 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         Window w = getWindow();
         if (w != null) {
-            w.setStatusBarColor(Color.parseColor("#07061a"));
-            w.setNavigationBarColor(Color.parseColor("#07061a"));
+            // light liquid-glass theme: light status/nav bars with dark icons
+            w.setStatusBarColor(Color.parseColor("#f0f0f5"));
+            w.setNavigationBarColor(Color.parseColor("#f0f0f5"));
             if (Build.VERSION.SDK_INT >= 26) {
                 View d = w.getDecorView();
-                d.setSystemUiVisibility(d.getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                        & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                d.setSystemUiVisibility(d.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                        | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
             }
         }
 
@@ -63,7 +64,7 @@ public class MainActivity extends Activity {
         VpnData.setCustomSource(pf.getString("src", null));
 
         web = new WebView(this);
-        web.setBackgroundColor(Color.parseColor("#07061a"));
+        web.setBackgroundColor(Color.parseColor("#f0f0f5"));
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -142,6 +143,24 @@ public class MainActivity extends Activity {
                             reply(cbId, new JSONObject().put("pings", r));
                             break;
                         }
+                        case "stats": {
+                            // REAL session stats: tunnel byte counters + live TCP ping
+                            // to the connected server. No simulated numbers.
+                            JSONObject o = new JSONObject();
+                            boolean conn = VpnController.get().state().equals(VpnController.CONNECTED);
+                            o.put("connected", conn);
+                            o.put("up", TunPump.upBytes());
+                            o.put("down", TunPump.downBytes());
+                            if (conn) {
+                                Node n = VpnController.get().currentNode();
+                                if (n != null) {
+                                    long ms = VpnData.tcpPing(n.host, n.port);
+                                    if (ms > 0) o.put("ping", ms);
+                                }
+                            }
+                            reply(cbId, o);
+                            break;
+                        }
                         case "connect": {
                             handleConnect(pay, cbId);
                             break;
@@ -158,7 +177,7 @@ public class MainActivity extends Activity {
                             JSONObject o = new JSONObject();
                             o.put("status", VpnController.get().state());
                             o.put("platform", "android");
-                            o.put("version", "1.5.1");
+                            o.put("version", "1.6.1");
                             o.put("features", new JSONObject()
                                     .put("kill", VpnController.get().killSwitch)
                                     .put("auto", VpnController.get().autoConnect)
@@ -214,14 +233,17 @@ public class MainActivity extends Activity {
                             break;
                         }
                         case "getIpInfo": {
+                            // HTTPS-only: never send user IP lookup over cleartext
                             JSONObject o = new JSONObject();
                             String body = VpnData.httpGet("https://api.ip.sb/geoip", 15_000, 65536);
-                            if (body == null) body = VpnData.httpGet("http://ip-api.com/json/?fields=query,countryCode,city", 15_000, 65536);
+                            if (body == null) body = VpnData.httpGet("https://ipwho.is/", 15_000, 65536);
                             if (body != null) {
                                 try {
                                     JSONObject j = new JSONObject(body);
                                     o.put("ip", j.optString("query", j.optString("ip", "")));
-                                    o.put("cc", j.optString("countryCode", j.optString("cc", "")));
+                                    String cc = j.optString("countryCode",
+                                            j.optString("country_code", j.optString("cc", "")));
+                                    o.put("cc", cc);
                                     o.put("city", j.optString("city", ""));
                                 } catch (Throwable ignored) {}
                             }

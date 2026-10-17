@@ -539,7 +539,7 @@ impl VeilApp {
             p.clone().text(
                 Pos2::new(if rtl { area.left() } else { area.right() }, foot_y),
                 if rtl { Align2::LEFT_CENTER } else { Align2::RIGHT_CENTER },
-                "v1.6.0 · MIT",
+                "v1.6.1 · MIT",
                 egui::FontId::proportional(10.0),
                 c_sub(),
             );
