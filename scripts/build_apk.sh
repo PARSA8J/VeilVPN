@@ -49,8 +49,11 @@ echo "== zipalign"
 "$BT/zipalign" -f 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 
 echo "== sign"
-KS="$OUT/veil.keystore"
+# project's public release key — committed so ALL builds (local & CI) share one signature
+# and users can upgrade the APK in place without uninstalling.
+KS="$ROOT/android/veil-release.keystore"
 if [ ! -f "$KS" ]; then
+  KS="$OUT/veil.keystore"
   keytool -genkeypair -keystore "$KS" -storepass veilvpn123 -keypass veilvpn123 \
     -alias veil -keyalg RSA -keysize 2048 -validity 10000 \
     -dname "CN=VeilVPN, O=Veil, C=IR" 2>/dev/null
