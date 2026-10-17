@@ -1,0 +1,11 @@
+# tools & builds
+tools/
+android/build/
+android/app/assets/
+windows/web/
+download/
+shots/
+*.keystore
+*.idsig
+__pycache__/
+*.zip

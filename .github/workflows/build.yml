@@ -1,0 +1,55 @@
+name: build
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - name: Setup tools
+        run: bash scripts/setup_tools.sh
+      - name: Build APK
+        run: |
+          mkdir -p dist
+          sudo apt-get update -qq && sudo apt-get install -y -qq zip unzip >/dev/null
+          OUT_DIR=dist bash scripts/build_apk.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VeilVPN-Android
+          path: dist/VeilVPN-1.5.1.apk
+
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - name: Build EXE
+        run: |
+          mkdir -p dist
+          OUT_DIR=dist bash scripts/build_exe.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VeilVPN-Windows
+          path: dist/VeilVPN-1.5.1.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ android, windows ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist }
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/VeilVPN-*
