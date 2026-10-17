@@ -5,6 +5,11 @@
 # Usage: scripts/build_exe.sh   (OUT_DIR=dist to change output dir)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# resolve output dir to ABSOLUTE path BEFORE any cd
+OUT_DIR_ABS="${OUT_DIR:-$ROOT}"
+mkdir -p "$OUT_DIR_ABS" && OUT_DIR_ABS="$(cd "$OUT_DIR_ABS" && pwd)"
+
 cd "$ROOT/windows-rs"
 
 # toolchain hints (llvm-mingw or mingw-w64 in PATH)
@@ -13,9 +18,6 @@ if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1 && [ -d "$ROOT/tools/llvm
 fi
 
 echo "== build (windows-gnu, release)"
-OUT_DIR_ABS="${OUT_DIR:-$ROOT}"
-mkdir -p "$OUT_DIR_ABS" && OUT_DIR_ABS="$(cd "$OUT_DIR_ABS" && pwd)"
-
 export RUSTFLAGS="${RUSTFLAGS} -L $HOME/tools/fakelibs"
 cargo build --release --target x86_64-pc-windows-gnu
 
