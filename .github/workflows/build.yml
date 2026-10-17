@@ -23,7 +23,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Mehrveil-Android
-          path: dist/Mehrveil-1.6.4.apk
+          path: dist/Mehrveil-1.6.5.apk
 
   windows:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Mehrveil-Windows
-          path: dist/Mehrveil-1.6.4.exe
+          path: dist/Mehrveil-1.6.5.exe
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

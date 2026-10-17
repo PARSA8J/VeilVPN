@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.4 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.5 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -73,7 +73,7 @@ function ccFlag(cc){
 /* ---------------- state ---------------- */
 var state = {
   status:'disconnected', servers:[], selected:null, seconds:0, timers:[],
-  lic:null, features:{kill:true,auto:true,adblock:false}, lang:null,
+  features:{kill:true,auto:true,adblock:false}, lang:null,
   ipInfo:null, bootReady:false, lastError:null, showAll:false, pingLoop:false
 };
 
@@ -112,7 +112,6 @@ function applyLang(lang){
 function refreshStaticText(){
   if(state.status==='disconnected') updateIdleUI();
   statusText.textContent = window.t(state.status==='connected'?'protected':state.status==='connecting'?'connecting':'disconnected');
-  if(state.lic) renderLicBadges();
 }
 
 /* ---------------- helpers ---------------- */
@@ -292,7 +291,6 @@ function connect(){
   BRIDGE.call('connect',{id:state.selected.id}).then(function(r){
     if(r && r.ok && r.async) return;
     if(r && r.ok && r.handoff){ toast(window.t('connecting')); return; }
-    if(r && !r.ok && r.error==='activate'){ state.status='disconnected'; applyStatusClass(); updateIdleUI(); showGate(); return; }
     if(r && !r.ok){ state.status='disconnected'; applyStatusClass(); updateIdleUI(); toast(r.error||window.t('conn_fail'), true); }
   }).catch(function(e){
     state.status='disconnected'; applyStatusClass(); updateIdleUI();
@@ -345,55 +343,15 @@ function loadIpInfo(){
   }).catch(function(){});
 }
 
-/* ---------------- license gate ---------------- */
-var gateOverlay=document.getElementById('gateOverlay'),
-  settingsOverlay=document.getElementById('settingsOverlay'),
-  licBadge=document.getElementById('licBadge'), gateLicBadge=document.getElementById('gateLicBadge');
-function licText(lic){
-  if(!lic) return '';
-  var t = lic.type==='pre'? window.t('premium') : window.t('free');
-  var d = lic.type==='pre'? window.t('lifetime') : (lic.daysLeft>0? lic.daysLeft+' '+window.t('days_left') : window.t('expired'));
-  return {t:t,d:d};
-}
-function renderLicBadges(){
-  var L=state.lic; if(!L) return;
-  var x=licText(L);
-  var html='<div><div class="t">'+x.t+'</div><div class="d">'+x.d+' · '+esc(window.t('trial_note'))+': '+L.device+'</div></div>'+
-    '<span class="tag'+(L.type==='pre'?' pre':'')+'">'+(L.type==='pre'?'PREMIUM':'FREE')+'</span>';
-  licBadge.innerHTML=html;
-  gateLicBadge.innerHTML=html;
-}
-function showGate(){
-  renderLicBadges();
-  gateOverlay.classList.add('show');
-}
-function hideGate(){ gateOverlay.classList.remove('show'); }
-function activate(){
-  var inp=document.getElementById('gateKey');
-  var key=(inp.value||'').trim().toUpperCase();
-  if(!key){ toast(window.t('need_key'), true); return; }
-  BRIDGE.call('activateKey',{key:key}).then(function(r){
-    if(r&&r.ok){
-      toast(window.t('key_ok'));
-      inp.value='';
-      state.lic=r.lic||null; renderLicBadges();
-      hideGate(); settingsOverlay.classList.remove('show');
-      if(state.status==='disconnected') connect();
-    } else toast((r&&r.error)||window.t('key_bad'), true);
-  }).catch(function(){ toast(window.t('key_bad'), true); });
-}
-
 /* ---------------- settings ---------------- */
+var settingsOverlay=document.getElementById('settingsOverlay');
 function fillLangs(){
   var sel=document.getElementById('langSel');
   sel.innerHTML = window.I18N_LIST.map(function(l){ return '<option value="'+l[0]+'">'+l[1]+'</option>'; }).join('');
   sel.value=state.lang||detectLang();
 }
 function openSettings(){
-  BRIDGE.call('licenseInfo',{}).then(function(r){
-    if(r){ state.lic=r; renderLicBadges(); }
-    document.getElementById('srcState').textContent='';
-  }).catch(function(){});
+  document.getElementById('srcState').textContent='';
   fillLangs();
   try{ document.getElementById('srcInput').value = localStorage.getItem('veil.src')||''; }catch(e){}
   settingsOverlay.classList.add('show');
@@ -414,22 +372,6 @@ document.getElementById('refreshServers').addEventListener('click', function(){
   toast(window.t('refreshing'));
   BRIDGE.call('fetchServers',{}).then(function(r){ if(r&&r.servers) onServers(r.servers); }).catch(function(){});
 });
-document.getElementById('setDeactivate').addEventListener('click', function(){
-  BRIDGE.call('deactivateKey',{}).then(function(){ toast(window.t('deactivated')); settingsOverlay.classList.remove('show'); state.lic=null; }).catch(function(){});
-});
-var BOT='https://t.me/veilvpnverifybot';
-function openBot(){
-  var url=BOT;
-  BRIDGE.call('openUrl',{url:url}).catch(function(){
-    try{ window.open(url,'_blank'); }catch(e){ location.href=url; }
-  });
-}
-document.getElementById('gateBotBtn').addEventListener('click', openBot);
-document.getElementById('setBotBtn').addEventListener('click', openBot);
-document.getElementById('gateActivate').addEventListener('click', activate);
-document.getElementById('gateKey').addEventListener('keydown', function(e){ if(e.key==='Enter') activate(); });
-document.getElementById('gateLater').addEventListener('click', function(){ hideGate(); });
-gateOverlay.addEventListener('click', function(e){ if(e.target===gateOverlay) hideGate(); });
 settingsOverlay.addEventListener('click', function(e){ if(e.target===settingsOverlay) settingsOverlay.classList.remove('show'); });
 
 /* ---------------- features ---------------- */
@@ -463,7 +405,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.4 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.5 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();
@@ -475,7 +417,6 @@ function boot(){
     if(g.features){ state.features=g.features;
       document.querySelectorAll('.feature').forEach(function(b){ b.classList.toggle('on', !!g.features[b.dataset.feature]); }); }
     if(g.lang){ applyLang(g.lang); fillLangs(); }
-    if(g.lic){ state.lic=g.lic; renderLicBadges(); }
     if(g.status && g.status!=='disconnected'){
       state.status=g.status;
       if(g.server){ state.selected=Object.assign({cc:'XX'},g.server); }

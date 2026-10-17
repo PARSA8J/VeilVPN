@@ -717,51 +717,19 @@
       </div>
     </section>
 
-    <p class="foot"><span class="brand-mark">MEHR</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.6.4</span></p>
+    <p class="foot"><span class="brand-mark">MEHR</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.6.5</span></p>
   </main>
-
-  <!-- LICENSE GATE -->
-  <div class="overlay" id="gateOverlay">
-    <div class="sheet glass">
-      <h3 data-i18n="gate_title">Activation required</h3>
-      <p class="sub" data-i18n="gate_sub">Your trial has ended. Activate to keep using Veil.</p>
-      <div class="gate-warn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <p data-i18n="gate_bot">Get a free key from our Telegram bot, then paste it below.</p>
-      </div>
-      <div class="lic-badge" id="gateLicBadge"></div>
-      <div class="field">
-        <input id="gateKey" type="text" placeholder="MEHR-XXXXX-XXXXXXX" autocomplete="off" autocapitalize="characters">
-        <button class="btn primary" id="gateActivate" data-i18n="activate">Activate</button>
-      </div>
-      <div class="mini-links">
-        <button class="btn wide" id="gateBotBtn" data-i18n="get_key">Get key on Telegram</button>
-      </div>
-      <div class="mini-links">
-        <button class="btn wide" id="gateLater" style="background:transparent" data-i18n="later">Later</button>
-      </div>
-    </div>
-  </div>
 
   <!-- SETTINGS -->
   <div class="overlay" id="settingsOverlay">
     <div class="sheet glass">
       <h3 data-i18n="settings">Settings</h3>
-      <p class="sub" data-i18n="settings_sub">License · Language · Sources</p>
-      <div class="lic-badge" id="licBadge"></div>
       <div class="row"><span class="k" data-i18n="language">Language</span></div>
       <div class="field"><select id="langSel"></select></div>
       <div class="row"><span class="k" data-i18n="custom_source">Custom subscription</span><span class="v" id="srcState"></span></div>
       <div class="field"><input id="srcInput" type="url" placeholder="https://... (sub or raw list)"></div>
       <button class="btn wide" id="srcSave" data-i18n="save_refresh">Save & refresh servers</button>
       <button class="btn wide" id="refreshServers" data-i18n="refresh_now">Refresh servers now</button>
-      <div class="row" style="margin-top:10px"><span class="k" data-i18n="account">Account</span></div>
-      <div class="mini-links">
-        <button class="btn wide" id="setBotBtn" data-i18n="get_key">Get key on Telegram</button>
-      </div>
-      <div class="mini-links">
-        <button class="btn wide danger" id="setDeactivate" data-i18n="deactivate">Deactivate license</button>
-      </div>
       <button class="btn wide" id="setClose" style="background:transparent;margin-top:10px" data-i18n="close">Close</button>
     </div>
   </div>

@@ -55,7 +55,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        LicenseManager.info(this);          // auto-provision trial on first run
         VpnData.setSink(arr -> main.post(() -> pushServers(arr)));
         android.content.SharedPreferences pf = getSharedPreferences("veil_prefs", 0);
         VpnController.get().killSwitch = pf.getBoolean("f_kill", true);
@@ -183,13 +182,12 @@ public class MainActivity extends Activity {
                             o.put("platform", "android");
                             String ver;
             try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-            catch (Throwable t) { ver = "1.6.4"; }
+            catch (Throwable t) { ver = "1.6.5"; }
             o.put("version", ver);
                             o.put("features", new JSONObject()
                                     .put("kill", VpnController.get().killSwitch)
                                     .put("auto", VpnController.get().autoConnect)
                                     .put("adblock", VpnController.get().adblock));
-                            o.put("lic", LicenseManager.info(MainActivity.this).json());
                             String savedLang = getSharedPreferences("veil_prefs", 0).getString("lang", null);
                             if (savedLang != null) o.put("lang", savedLang);
                             Node n = VpnController.get().currentNode();
@@ -198,21 +196,6 @@ public class MainActivity extends Activity {
                                         .put("cc", n.cc == null ? "XX" : n.cc).put("name", n.name()));
                             }
                             reply(cbId, o);
-                            break;
-                        }
-                        case "licenseInfo": {
-                            reply(cbId, LicenseManager.info(MainActivity.this).json());
-                            break;
-                        }
-                        case "activateKey": {
-                            LicenseManager.Info r = LicenseManager.activate(MainActivity.this, pay.optString("key"));
-                            if (r != null) reply(cbId, new JSONObject().put("ok", true).put("lic", r.json()));
-                            else reply(cbId, new JSONObject().put("ok", false).put("error", "invalid key"));
-                            break;
-                        }
-                        case "deactivateKey": {
-                            LicenseManager.deactivate(MainActivity.this);
-                            reply(cbId, new JSONObject().put("ok", true));
                             break;
                         }
                         case "setLang": {
@@ -280,13 +263,6 @@ public class MainActivity extends Activity {
         }
 
         private void handleConnect(JSONObject pay, String cbId) {
-            LicenseManager.Info lic = LicenseManager.info(MainActivity.this);
-            if (!lic.active()) {
-                try {
-                    reply(cbId, new JSONObject().put("ok", false).put("error", "activate"));
-                } catch (Throwable ignored) {}
-                return;
-            }
             String id = pay.optString("id");
             Node node = id == null || id.isEmpty() ? null : VpnData.fullById(id);
             if (node == null && VpnData.NODES.size() > 0) node = VpnData.NODES.get(0);

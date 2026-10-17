@@ -5,7 +5,6 @@ mod app;
 mod engine;
 mod fetch;
 mod i18n;
-mod license;
 mod proto;
 mod store;
 mod sysproxy;

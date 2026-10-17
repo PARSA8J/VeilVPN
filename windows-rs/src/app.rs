@@ -2,7 +2,6 @@
 
 use crate::engine::{Cmd, Engine, Phase, Shared};
 use crate::i18n::I18nState;
-use crate::license::{self, LicenseState, Plan};
 use crate::store::Config;
 use crate::theme::*;
 use crate::uri::Server;
@@ -18,13 +17,9 @@ pub struct VeilApp {
     pub config: Config,
     pub engine: Engine,
     pub shared: Arc<Shared>,
-    pub license: Option<license::License>,
-    pub lic_state: LicenseState,
 
     pub selected_key: String,
     pub show_settings: bool,
-    pub gate: bool,
-    pub key_input: String,
     pub sub_input: String,
     pub toast: Option<(String, f64, bool)>, // text, shown_at_sec, is_error
     pub acrylic_tried: u32,
@@ -48,15 +43,6 @@ impl VeilApp {
 
         let engine = Engine::start(shared.clone());
 
-        // license: load or issue trial
-        let mut lic = license::load();
-        if lic.is_none() {
-            let l = license::issue_trial();
-            let _ = license::save(&l);
-            lic = Some(l);
-        }
-        let lic_state = license::evaluate(&lic);
-
         // background: ping + live fetch shortly after boot
         {
             let shared2 = shared.clone();
@@ -74,14 +60,10 @@ impl VeilApp {
             i18n,
             selected_key: config.selected_key.clone(),
             show_settings: false,
-            gate: !lic_state.valid,
-            key_input: String::new(),
             sub_input: config.custom_source.clone(),
             toast: None,
             acrylic_tried: 0,
             acrylic_done: false,
-            license: lic,
-            lic_state,
             config,
             engine,
             shared,
@@ -170,8 +152,8 @@ impl eframe::App for VeilApp {
                 if !self.acrylic_done {
                     paint_bg(ui.painter().clone(), bg_rect);
                 } else {
-                    // light frost layer over the acrylic blur
-                    ui.painter().rect_filled(bg_rect, 0.0, Color32::from_white_alpha(70));
+                    // frost layer over the acrylic blur (kept opaque enough for VMs/RDP)
+                    ui.painter().rect_filled(bg_rect, 0.0, Color32::from_white_alpha(150));
                 }
                 self.ui_body(ui, ctx);
                 self.ui_toast(ui);
@@ -517,29 +499,10 @@ impl VeilApp {
         {
             let p = ui.painter().clone();
             let foot_y = area.bottom() - 2.0;
-            let lic_txt = match self.lic_state.plan {
-                Plan::Premium => self.i18n.t("premium"),
-                Plan::Lifetime => self.i18n.t("lifetime"),
-                Plan::Trial => {
-                    if self.lic_state.days_left.is_infinite() {
-                        self.i18n.t("trial_note").to_string()
-                    } else {
-                        format!("{}: {:.0} {}", self.i18n.t("trial_note"), self.lic_state.days_left, self.i18n.t("days_left"))
-                    }
-                }
-                Plan::Free => self.i18n.t("free"),
-            };
-            p.clone().text(
-                Pos2::new(if rtl { area.right() } else { area.left() }, foot_y),
-                if rtl { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
-                lic_txt,
-                egui::FontId::proportional(10.0),
-                c_sub(),
-            );
             p.clone().text(
                 Pos2::new(if rtl { area.left() } else { area.right() }, foot_y),
                 if rtl { Align2::LEFT_CENTER } else { Align2::RIGHT_CENTER },
-                "v1.6.4 · MIT",
+                concat!("v", env!("CARGO_PKG_VERSION"), " · MIT"),
                 egui::FontId::proportional(10.0),
                 c_sub(),
             );
@@ -548,9 +511,6 @@ impl VeilApp {
         // overlays
         if self.show_settings {
             self.ui_settings(ctx);
-        }
-        if self.gate {
-            self.ui_gate(ctx);
         }
     }
 
@@ -561,10 +521,6 @@ impl VeilApp {
                 let _ = self.engine.tx.send(Cmd::Disconnect);
             }
             Phase::Idle | Phase::Error(_) => {
-                if !self.lic_state.valid {
-                    self.gate = true;
-                    return;
-                }
                 if let Some(s) = self.selected_server() {
                     let _ = self.engine.tx.send(Cmd::Connect { server: s });
                 } else {
@@ -577,7 +533,7 @@ impl VeilApp {
     fn ui_settings(&mut self, ctx: &Context) {
         let screen = ctx.screen_rect();
         let w = (screen.width() - 40.0).min(360.0);
-        let h = 310.0;
+        let h = 205.0;
         let sheet = Rect::from_center_size(screen.center(), Vec2::new(w, h));
         let rtl = self.i18n.is_rtl();
         let inner = sheet.shrink(18.0);
@@ -681,120 +637,6 @@ impl VeilApp {
                     self.show_settings = false;
                     self.toast(self.i18n.t("refreshing"), false);
                 }
-
-                // license box
-                let lic_rect = Rect::from_min_size(Pos2::new(inner.left(), row_y + 42.0), Vec2::new(inner.width(), 66.0));
-                glass_panel(p.clone(), lic_rect, 12.0, false);
-                let plan_txt = match self.lic_state.plan {
-                    Plan::Premium => self.i18n.t("premium"),
-                    Plan::Lifetime => self.i18n.t("lifetime"),
-                    Plan::Trial => self.i18n.t("trial_note"),
-                    Plan::Free => self.i18n.t("free"),
-                };
-                let days = if self.lic_state.days_left.is_infinite() {
-                    "∞".to_string()
-                } else {
-                    format!("{:.0} {}", self.lic_state.days_left, self.i18n.t("days_left"))
-                };
-                p.clone().text(
-                    Pos2::new(if rtl { lic_rect.right() - 12.0 } else { lic_rect.left() + 12.0 }, lic_rect.top() + 16.0),
-                    if rtl { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
-                    plan_txt,
-                    egui::FontId::proportional(13.0),
-                    c_ink(),
-                );
-                p.clone().text(
-                    Pos2::new(if rtl { lic_rect.right() - 12.0 } else { lic_rect.left() + 12.0 }, lic_rect.top() + 38.0),
-                    if rtl { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
-                    if matches!(self.lic_state.plan, Plan::Premium | Plan::Lifetime) { "∞".to_string() } else { days },
-                    egui::FontId::proportional(10.5),
-                    c_sub(),
-                );
-                let tg_rect = Rect::from_min_size(
-                    Pos2::new(if rtl { lic_rect.left() + 12.0 } else { lic_rect.right() - 132.0 }, lic_rect.top() + 14.0),
-                    Vec2::new(120.0, 26.0),
-                );
-                gloss_pill(p.clone(), tg_rect, c_accent(), None);
-                p.clone().text(tg_rect.center(), Align2::CENTER_CENTER, self.i18n.t("get_key"), egui::FontId::proportional(10.0), Color32::WHITE);
-                if ui.allocate_rect(tg_rect, Sense::click()).clicked() {
-                    open_url(ctx, "https://t.me/veilvpnverifybot");
-                }
-            });
-    }
-
-    fn ui_gate(&mut self, ctx: &Context) {
-        let screen = ctx.screen_rect();
-        let w = (screen.width() - 40.0).min(330.0);
-        let h = 250.0;
-        let sheet = Rect::from_center_size(screen.center(), Vec2::new(w, h));
-        let inner = sheet.shrink(18.0);
-        let rtl = self.i18n.is_rtl();
-
-        egui::Area::new(egui::Id::new("veil_gate"))
-            .order(egui::Order::Foreground)
-            .fixed_pos(sheet.min)
-            .show(ctx, |ui| {
-                ui.set_min_size(sheet.size());
-                let p = ui.painter().clone();
-                p.clone().rect_filled(screen, 0.0, Color32::from_black_alpha(70));
-                glass_panel(p.clone(), sheet, 22.0, true);
-                p.clone().text(
-                    Pos2::new(screen.center().x, inner.top() + 20.0),
-                    Align2::CENTER_CENTER,
-                    "🔒",
-                    egui::FontId::proportional(24.0),
-                    c_ink(),
-                );
-                p.clone().text(
-                    Pos2::new(screen.center().x, inner.top() + 52.0),
-                    Align2::CENTER_CENTER,
-                    self.i18n.t("gate_title"),
-                    egui::FontId::proportional(16.0),
-                    c_ink(),
-                );
-                p.clone().text(
-                    Pos2::new(screen.center().x, inner.top() + 74.0),
-                    Align2::CENTER_CENTER,
-                    self.i18n.t("gate_sub"),
-                    egui::FontId::proportional(11.0),
-                    c_sub(),
-                );
-                // key input
-                let key_rect = Rect::from_min_size(Pos2::new(inner.left() + 6.0, inner.top() + 98.0), Vec2::new(inner.width() - 12.0, 30.0));
-                let edit = egui::TextEdit::singleline(&mut self.key_input)
-                    .hint_text(RichText::new("MEHR-...").size(11.0))
-                    .desired_width(key_rect.width())
-                    .font(egui::TextStyle::Small);
-                ui.put(key_rect, edit);
-                // activate button
-                let act_rect = Rect::from_min_size(Pos2::new(inner.left() + 6.0, key_rect.bottom() + 8.0), Vec2::new(inner.width() - 12.0, 36.0));
-                gloss_pill(p.clone(), act_rect, c_accent(), None);
-                p.clone().text(act_rect.center(), Align2::CENTER_CENTER, self.i18n.t("activate"), egui::FontId::proportional(14.0), Color32::WHITE);
-                if ui.allocate_rect(act_rect, Sense::click()).clicked() {
-                    match license::activate(&self.key_input) {
-                        Ok(l) => {
-                            self.license = Some(l);
-                            self.lic_state = license::evaluate(&self.license);
-                            self.gate = false;
-                            self.toast(self.i18n.t("key_ok"), false);
-                        }
-                        Err(_) => self.toast(self.i18n.t("key_bad"), true),
-                    }
-                }
-                // telegram + later row
-                let row_y = act_rect.bottom() + 8.0;
-                let half = (inner.width() - 12.0) / 2.0;
-                let tg_rect = Rect::from_min_size(Pos2::new(if rtl { inner.right() - half } else { inner.left() + 6.0 }, row_y), Vec2::new(half, 28.0));
-                let later_rect = Rect::from_min_size(Pos2::new(if rtl { inner.left() + 6.0 } else { tg_rect.right() + 12.0 }, row_y), Vec2::new(half, 28.0));
-                gloss_pill(p.clone(), tg_rect, Color32::from_rgb(0x2A, 0xAB, 0xEE), None);
-                p.clone().text(tg_rect.center(), Align2::CENTER_CENTER, self.i18n.t("get_key"), egui::FontId::proportional(11.0), Color32::WHITE);
-                if ui.allocate_rect(tg_rect, Sense::click()).clicked() {
-                    open_url(ctx, "https://t.me/veilvpnverifybot");
-                }
-                p.clone().text(later_rect.center(), Align2::CENTER_CENTER, self.i18n.t("later"), egui::FontId::proportional(11.0), c_ink());
-                if ui.allocate_rect(later_rect, Sense::click()).clicked() {
-                    self.gate = false;
-                }
             });
     }
 
@@ -823,10 +665,6 @@ impl VeilApp {
         self.config.lang = code;
         self.config.save();
     }
-}
-
-fn open_url(ctx: &Context, url: &str) {
-    ctx.open_url(egui::OpenUrl::same_tab(url));
 }
 
 fn truncate(s: &str, max_chars: usize) -> String {
