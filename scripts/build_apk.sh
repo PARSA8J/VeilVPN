@@ -1,5 +1,5 @@
 #!/bin/bash
-# VeilVPN 1.5.1 APK build: aapt2 + ecj + d8 + zipalign + apksigner
+# VeilVPN 1.6.0 APK build: aapt2 + ecj + d8 + zipalign + apksigner
 # Usage: scripts/build_apk.sh   (tools must be in $TOOLS_DIR, default ./tools — run scripts/setup_tools.sh first)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,9 +13,9 @@ ASSETS="$ROOT/android/app/assets"
 OUT="$ROOT/android/build"
 APK_DIR="${OUT_DIR:-$ROOT}"
 mkdir -p "$APK_DIR" && APK_DIR="$(cd "$APK_DIR" && pwd)"   # absolute: script cd's internally
-APK="$APK_DIR/VeilVPN-1.5.1.apk"
-VER_NAME=1.5.1
-VER_CODE=10
+APK="$APK_DIR/VeilVPN-1.6.0.apk"
+VER_NAME=1.6.0
+VER_CODE=11
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/dex" "$ASSETS"
 

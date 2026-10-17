@@ -9,3 +9,8 @@ shots/
 *.idsig
 __pycache__/
 *.zip
+
+# rust
+target/
+windows-rs/target/
+veil-data/

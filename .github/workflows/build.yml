@@ -23,22 +23,36 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: VeilVPN-Android
-          path: dist/VeilVPN-1.5.1.apk
+          path: dist/VeilVPN-1.6.0.apk
 
   windows:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: { go-version: '1.22' }
-      - name: Build EXE
+      - name: Install llvm-mingw (linux-hosted cross toolchain)
+        run: |
+          mkdir -p "$HOME/tools" && cd "$HOME/tools"
+          curl -sL -o lm.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/20240917/llvm-mingw-20240917-ucrt-ubuntu-20.04-x86_64.tar.xz
+          tar -xf lm.tar.xz && mv llvm-mingw-20240917-ucrt-ubuntu-20.04-x86_64 llvm-mingw && rm lm.tar.xz
+          # libgcc shims for rust's windows-gnu linker args
+          mkdir -p "$HOME/tools/fakelibs"
+          ln -sf "$HOME/tools/llvm-mingw/x86_64-w64-mingw32/lib/libunwind.a" "$HOME/tools/fakelibs/libgcc.a"
+          ln -sf "$HOME/tools/llvm-mingw/x86_64-w64-mingw32/lib/libunwind.a" "$HOME/tools/fakelibs/libgcc_eh.a"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: windows-rs
+      - name: Build EXE (Rust native)
         run: |
           mkdir -p dist
-          OUT_DIR=dist bash scripts/build_exe.sh
+          export PATH="$HOME/tools/llvm-mingw/bin:$PATH"
+          OUT_DIR=dist RUSTFLAGS="-L $HOME/tools/fakelibs" bash scripts/build_exe.sh
       - uses: actions/upload-artifact@v4
         with:
           name: VeilVPN-Windows
-          path: dist/VeilVPN-1.5.1.exe
+          path: dist/VeilVPN-1.6.0.exe
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

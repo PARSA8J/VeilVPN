@@ -1,23 +1,24 @@
 #!/bin/bash
-# VeilVPN 1.5.1 Windows EXE build (cross-compile from linux/mac or native on windows)
-# Usage: scripts/build_exe.sh   (needs Go 1.22+ in PATH or in ./tools/go)
+# VeilVPN 1.6.0 Windows EXE build (Rust native, cross-compile from linux/mac or native on windows)
+# Needs: rustup target x86_64-pc-windows-gnu + llvm-mingw (linux) or mingw toolchain.
+#   rustup target add x86_64-pc-windows-gnu
+# Usage: scripts/build_exe.sh   (OUT_DIR=dist to change output dir)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export PATH="${TOOL_GO:-$ROOT/tools/go/bin}:$PATH"
+cd "$ROOT/windows-rs"
 
-echo "== sync web embeds"
-mkdir -p "$ROOT/windows/web"
-cp "$ROOT"/shared/index.html "$ROOT"/shared/app.js "$ROOT"/shared/glass.css "$ROOT"/shared/i18n.js "$ROOT"/shared/seed.txt "$ROOT/windows/web/"
-
-echo "== build"
-OUT_DIR_ABS="${OUT_DIR:-$ROOT}"
-mkdir -p "$OUT_DIR_ABS" && OUT_DIR_ABS="$(cd "$OUT_DIR_ABS" && pwd)"   # absolute: script cd's internally
-OUT="$OUT_DIR_ABS/VeilVPN-1.5.1.exe"
-cd "$ROOT/windows"
-if [ "$(go env GOOS 2>/dev/null)" != "windows" ]; then
-  GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -H=windowsgui" -o "$OUT" .
-else
-  go build -trimpath -ldflags "-s -w -H=windowsgui" -o "$OUT" .
+# toolchain hints (llvm-mingw or mingw-w64 in PATH)
+if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1 && [ -d "$ROOT/tools/llvm-mingw/bin" ]; then
+  export PATH="$ROOT/tools/llvm-mingw/bin:$PATH"
 fi
-ls -la "$OUT"
-echo "BUILD OK -> $OUT"
+
+echo "== build (windows-gnu, release)"
+OUT_DIR_ABS="${OUT_DIR:-$ROOT}"
+mkdir -p "$OUT_DIR_ABS" && OUT_DIR_ABS="$(cd "$OUT_DIR_ABS" && pwd)"
+
+export RUSTFLAGS="${RUSTFLAGS} -L $HOME/tools/fakelibs"
+cargo build --release --target x86_64-pc-windows-gnu
+
+cp target/x86_64-pc-windows-gnu/release/veilvpn.exe "$OUT_DIR_ABS/VeilVPN-1.6.0.exe"
+ls -la "$OUT_DIR_ABS/VeilVPN-1.6.0.exe"
+echo "BUILD OK -> $OUT_DIR_ABS/VeilVPN-1.6.0.exe"

@@ -94,9 +94,7 @@ function detectLang(){
   var saved=null;
   try{ saved=localStorage.getItem('veil.lang'); }catch(e){}
   if(saved) return saved;
-  var nav=(navigator.language||'en').slice(0,2).toLowerCase();
-  if(window.I18N[nav]) return nav;
-  return 'en';
+  return 'en'; /* default language: English (user can pick any in settings) */
 }
 function applyLang(lang){
   state.lang=lang;
