@@ -1,8 +1,8 @@
-package com.veilvpn.app.proto;
+package com.mehrveil.app.proto;
 
-import com.veilvpn.app.Node;
-import com.veilvpn.app.net.Tls;
-import com.veilvpn.app.net.Ws;
+import com.mehrveil.app.Node;
+import com.mehrveil.app.net.Tls;
+import com.mehrveil.app.net.Ws;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -73,9 +73,9 @@ public final class Vless extends BaseClient {
     private static byte[] uuidBytes(String s) {
         String t = s == null ? "" : s.trim().replace("-", "");
         if (t.length() == 32) {
-            try { return com.veilvpn.app.U.unhex(t); } catch (Throwable ignored) {}
+            try { return com.mehrveil.app.U.unhex(t); } catch (Throwable ignored) {}
         }
-        return com.veilvpn.app.U.b64decode(s);
+        return com.mehrveil.app.U.b64decode(s);
     }
 
     private static byte[] encodeAddr(String host) {

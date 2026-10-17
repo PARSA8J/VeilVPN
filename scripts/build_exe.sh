@@ -1,5 +1,5 @@
 #!/bin/bash
-# VeilVPN 1.6.1 Windows EXE build (Rust native, cross-compile from linux/mac or native on windows)
+# Mehrveil 1.6.2 Windows EXE build (Rust native, cross-compile from linux/mac or native on windows)
 # Needs: rustup target x86_64-pc-windows-gnu + llvm-mingw (linux) or mingw toolchain.
 #   rustup target add x86_64-pc-windows-gnu
 # Usage: scripts/build_exe.sh   (OUT_DIR=dist to change output dir)
@@ -21,6 +21,6 @@ echo "== build (windows-gnu, release)"
 export RUSTFLAGS="${RUSTFLAGS} -L $HOME/tools/fakelibs"
 cargo build --release --target x86_64-pc-windows-gnu
 
-cp target/x86_64-pc-windows-gnu/release/veilvpn.exe "$OUT_DIR_ABS/VeilVPN-1.6.1.exe"
-ls -la "$OUT_DIR_ABS/VeilVPN-1.6.1.exe"
-echo "BUILD OK -> $OUT_DIR_ABS/VeilVPN-1.6.1.exe"
+cp target/x86_64-pc-windows-gnu/release/veilvpn.exe "$OUT_DIR_ABS/Mehrveil-1.6.2.exe"
+ls -la "$OUT_DIR_ABS/Mehrveil-1.6.2.exe"
+echo "BUILD OK -> $OUT_DIR_ABS/Mehrveil-1.6.2.exe"

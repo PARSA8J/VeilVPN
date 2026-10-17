@@ -1,4 +1,4 @@
-package com.veilvpn.app.net;
+package com.mehrveil.app.net;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,7 +24,7 @@ public final class Ws {
     public static Ws handshake(Socket sock, String host, int port, String path, String hostHeader) throws IOException {
         InputStream in = sock.getInputStream();
         OutputStream out = sock.getOutputStream();
-        String key = com.veilvpn.app.U.b64encode(new byte[]{1, 35, 69, 103, (byte) 137, (byte) 171, (byte) 205, (byte) 239});
+        String key = com.mehrveil.app.U.b64encode(new byte[]{1, 35, 69, 103, (byte) 137, (byte) 171, (byte) 205, (byte) 239});
         String h = "GET " + (path == null || path.isEmpty() ? "/" : path) + " HTTP/1.1\r\n" +
                 "Host: " + (hostHeader != null && !hostHeader.isEmpty() ? hostHeader : host + (port == 80 ? "" : ":" + port)) + "\r\n" +
                 "Upgrade: websocket\r\nConnection: Upgrade\r\n" +

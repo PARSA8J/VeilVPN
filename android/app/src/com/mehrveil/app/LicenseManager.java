@@ -1,4 +1,4 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
 import android.content.Context;
 import android.provider.Settings;

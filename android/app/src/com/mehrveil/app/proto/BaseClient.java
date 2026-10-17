@@ -1,6 +1,6 @@
-package com.veilvpn.app.proto;
+package com.mehrveil.app.proto;
 
-import com.veilvpn.app.Node;
+import com.mehrveil.app.Node;
 
 /** Base for protocol clients holding the node. */
 public abstract class BaseClient implements Client {

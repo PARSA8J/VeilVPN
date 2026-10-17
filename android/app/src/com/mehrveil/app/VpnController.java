@@ -1,6 +1,6 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
-import com.veilvpn.app.proto.Client;
+import com.mehrveil.app.proto.Client;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -91,9 +91,9 @@ public final class VpnController {
 
     public static Client clientFor(Node n) throws Exception {
         switch (n.proto) {
-            case "vless": return new com.veilvpn.app.proto.Vless(n);
-            case "trojan": return new com.veilvpn.app.proto.Trojan(n);
-            case "ss": return new com.veilvpn.app.proto.SsAead(n);
+            case "vless": return new com.mehrveil.app.proto.Vless(n);
+            case "trojan": return new com.mehrveil.app.proto.Trojan(n);
+            case "ss": return new com.mehrveil.app.proto.SsAead(n);
             default: throw new Exception("unsupported proto: " + n.proto);
         }
     }

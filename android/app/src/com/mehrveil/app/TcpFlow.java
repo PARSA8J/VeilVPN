@@ -1,4 +1,4 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,7 +1,7 @@
-package com.veilvpn.app.proto;
+package com.mehrveil.app.proto;
 
-import com.veilvpn.app.Node;
-import com.veilvpn.app.net.Tls;
+import com.mehrveil.app.Node;
+import com.mehrveil.app.net.Tls;
 
 import java.io.InputStream;
 import java.io.OutputStream;

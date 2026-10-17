@@ -5,7 +5,7 @@ var K = {
   en:{ping:'Ping',down:'Down',up:'Up',servers:'Servers',features:'Features',f_kill:'Kill Switch',f_auto:'Auto-Connect',f_ad:'Ad Blocker',
     tap_connect:'Tap to connect',slogan:'See nothing. Be invisible.',connecting:'Connecting\u2026',connected:'Connected',disconnecting:'Disconnecting\u2026',
     disconnected:'Disconnected',protected:'Protected',selected:'Selected',securing:'Securing tunnel',gate_title:'Activation required',
-    gate_sub:'Your trial has ended. Activate to keep using Veil.',gate_bot:'Get a free key from our Telegram bot, then paste it below.',
+    gate_sub:'Your trial has ended. Activate to keep using Mehrveil.',gate_bot:'Get a free key from our Telegram bot, then paste it below.',
     activate:'Activate',get_key:'Get key on Telegram',later:'Later',settings:'Settings',settings_sub:'License \u00b7 Language \u00b7 Sources',
     language:'Language',custom_source:'Custom subscription',save_refresh:'Save & refresh servers',refresh_now:'Refresh servers now',
     account:'Account',deactivate:'Deactivate license',close:'Close',free:'Free',premium:'Premium',days_left:'days left',expired:'expired',

@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-//! VeilVPN — native Windows client (Rust + egui). See nothing. Be invisible.
+//! Mehrveil — native Windows client (Rust + egui). See nothing. Be invisible.
 
 mod app;
 mod engine;
@@ -24,7 +24,7 @@ fn load_icon() -> egui::IconData {
 fn single_instance_ok() -> bool {
     use windows_sys::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
     use windows_sys::Win32::System::Threading::CreateMutexW;
-    let name: Vec<u16> = "Global\\VeilVPN.SingleInstance"
+    let name: Vec<u16> = "Global\\Mehrveil.SingleInstance"
         .encode_utf16()
         .chain([0])
         .collect();
@@ -48,7 +48,7 @@ fn main() -> eframe::Result<()> {
     }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("VeilVPN")
+            .with_title("Mehrveil")
             .with_inner_size([400.0, 680.0])
             .with_min_inner_size([360.0, 580.0])
             .with_icon(load_icon())
@@ -56,5 +56,5 @@ fn main() -> eframe::Result<()> {
             .with_decorations(false),
         ..Default::default()
     };
-    eframe::run_native("VeilVPN", options, Box::new(|cc| Ok(Box::new(app::VeilApp::new(cc)))))
+    eframe::run_native("Mehrveil", options, Box::new(|cc| Ok(Box::new(app::VeilApp::new(cc)))))
 }

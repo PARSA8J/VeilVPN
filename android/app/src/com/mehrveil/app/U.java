@@ -1,4 +1,4 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
 /** Small shared utilities. android.util.Base64 ONLY (minSdk 24 safe). */
 public final class U {

@@ -1,4 +1,4 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Failover: tries candidates in order (watchdog 8s per candidate, 10s health loop).
  */
 public class VeilVpnService extends VpnService {
-    public static final String ACTION_CONNECT = "com.veilvpn.CONNECT";
-    public static final String ACTION_DISCONNECT = "com.veilvpn.DISCONNECT";
+    public static final String ACTION_CONNECT = "com.mehrveil.CONNECT";
+    public static final String ACTION_DISCONNECT = "com.mehrveil.DISCONNECT";
     private static final String CH = "veil";
     private static final int NOTIF_ID = 42;
 
@@ -88,8 +88,8 @@ public class VeilVpnService extends VpnService {
         while (System.currentTimeMillis() < deadline && VpnController.get().currentNode() != null) {
             try {
                 Node n = VpnController.get().currentNode();
-                com.veilvpn.app.proto.Client c = VpnController.clientFor(n);
-                com.veilvpn.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
+                com.mehrveil.app.proto.Client c = VpnController.clientFor(n);
+                com.mehrveil.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
                 try { ch.in.close(); } catch (Throwable ignored) {}
                 try { ch.out.close(); } catch (Throwable ignored) {}
                 ok = true;
@@ -124,8 +124,8 @@ public class VeilVpnService extends VpnService {
                 try {
                     Node n = VpnController.get().currentNode();
                     if (n == null) continue;
-                    com.veilvpn.app.proto.Client c = VpnController.clientFor(n);
-                    com.veilvpn.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
+                    com.mehrveil.app.proto.Client c = VpnController.clientFor(n);
+                    com.mehrveil.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
                     try { ch.in.close(); } catch (Throwable ignored) {}
                     try { ch.out.close(); } catch (Throwable ignored) {}
                 } catch (Throwable t) {

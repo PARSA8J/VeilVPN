@@ -1,4 +1,4 @@
-package com.veilvpn.app.net;
+package com.mehrveil.app.net;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

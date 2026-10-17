@@ -1,4 +1,4 @@
-package com.veilvpn.app;
+package com.mehrveil.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;

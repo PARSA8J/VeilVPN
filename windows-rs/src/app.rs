@@ -113,7 +113,7 @@ impl VeilApp {
             return;
         }
         self.acrylic_tried += 1;
-        if crate::sysproxy::apply_acrylic("VeilVPN") {
+        if crate::sysproxy::apply_acrylic("Mehrveil") {
             self.acrylic_done = true;
             ctx.request_repaint();
         }
@@ -207,7 +207,7 @@ impl VeilApp {
             p.clone().text(
                 Pos2::new(dot_c.x + if rtl { -18.0 } else { 18.0 }, tb.center().y),
                 if rtl { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
-                "VeilVPN",
+                "Mehrveil",
                 egui::FontId::proportional(15.0),
                 c_ink(),
             );
@@ -539,7 +539,7 @@ impl VeilApp {
             p.clone().text(
                 Pos2::new(if rtl { area.left() } else { area.right() }, foot_y),
                 if rtl { Align2::LEFT_CENTER } else { Align2::RIGHT_CENTER },
-                "v1.6.1 · MIT",
+                "v1.6.2 · MIT",
                 egui::FontId::proportional(10.0),
                 c_sub(),
             );
@@ -762,7 +762,7 @@ impl VeilApp {
                 // key input
                 let key_rect = Rect::from_min_size(Pos2::new(inner.left() + 6.0, inner.top() + 98.0), Vec2::new(inner.width() - 12.0, 30.0));
                 let edit = egui::TextEdit::singleline(&mut self.key_input)
-                    .hint_text(RichText::new("VEIL-...").size(11.0))
+                    .hint_text(RichText::new("MEHR-...").size(11.0))
                     .desired_width(key_rect.width())
                     .font(egui::TextStyle::Small);
                 ui.put(key_rect, edit);

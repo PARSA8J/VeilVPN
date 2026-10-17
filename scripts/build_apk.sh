@@ -1,5 +1,5 @@
 #!/bin/bash
-# VeilVPN 1.6.1 APK build: aapt2 + ecj + d8 + zipalign + apksigner
+# Mehrveil 1.6.2 APK build: aapt2 + ecj + d8 + zipalign + apksigner
 # Usage: scripts/build_apk.sh   (tools must be in $TOOLS_DIR, default ./tools — run scripts/setup_tools.sh first)
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,9 +13,9 @@ ASSETS="$ROOT/android/app/assets"
 OUT="$ROOT/android/build"
 APK_DIR="${OUT_DIR:-$ROOT}"
 mkdir -p "$APK_DIR" && APK_DIR="$(cd "$APK_DIR" && pwd)"   # absolute: script cd's internally
-APK="$APK_DIR/VeilVPN-1.6.1.apk"
-VER_NAME=1.6.1
-VER_CODE=12
+APK="$APK_DIR/Mehrveil-1.6.2.apk"
+VER_NAME=1.6.2
+VER_CODE=13
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/dex" "$ASSETS"
 
@@ -26,7 +26,7 @@ cp "$ROOT"/shared/seed.txt "$ASSETS/"
 echo "== aapt2 compile + link"
 "$BT/aapt2" compile --dir "$RES" -o "$OUT/res.zip"
 "$BT/aapt2" link -o "$OUT/base.apk" -I "$PLAT" --manifest "$MAN" --java "$OUT/gen" -A "$ASSETS" "$OUT/res.zip" \
-  --min-sdk-version 24 --target-sdk-version 33 --version-code $VER_CODE --version-name $VER_NAME \
+  --min-sdk-version 21 --target-sdk-version 33 --version-code $VER_CODE --version-name $VER_NAME \
   --auto-add-overlay
 
 echo "== ecj compile"
@@ -39,7 +39,7 @@ if [ $(find "$OUT/obj" -name '*.class' | wc -l) -lt 5 ]; then echo "ECJ FAILED";
 
 echo "== d8 dex"
 jar cf "$OUT/obj.jar" -C "$OUT/obj" . 2>/dev/null || { cd "$OUT/obj" && zip -q -r ../obj.jar . && cd ../..; }
-"$BT/d8" --release --min-api 24 --lib "$PLAT" --output "$OUT/dex" "$OUT/obj.jar" 2>&1 | head -10
+"$BT/d8" --release --min-api 21 --lib "$PLAT" --output "$OUT/dex" "$OUT/obj.jar" 2>&1 | head -10
 
 echo "== package"
 rm -rf "$OUT/merged" && mkdir -p "$OUT/merged"
