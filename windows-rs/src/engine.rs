@@ -218,19 +218,22 @@ async fn connect_with_failover(shared: &Arc<Shared>, uplink: &Arc<Mutex<Option<A
     st.last_error = None;
     shared.set_status(st);
 
-    // probe: connect through each candidate to ipify over plain HTTP (port 80)
-    let probe = Addr::new("api.ipify.org".into(), 80);
+    // probe: connect through each candidate to Cloudflare's connectivity check (port 80).
+    // api.ipify.org rate-limits (429) and many proxy exits 400 it; generate_204 is stable
+    // and reachable from Iran.
+    let probe = Addr::new("cp.cloudflare.com".into(), 80);
     for cand in &candidates {
         match try_probe(cand, &probe).await {
             Ok(ip) => {
                 *uplink.lock().unwrap() = Some(Arc::new(cand.clone()));
+                // "ok|<ms>" from try_probe — store the measured latency, no fake IP
+                let ms = ip.split('|').nth(1).and_then(|v| v.parse::<u32>().ok());
                 let mut st = shared.status();
                 st.phase = Phase::Connected;
                 st.active = Some(cand.clone());
                 st.since = Some(std::time::SystemTime::now());
-                st.ip = Some(ip);
-                // latency: measured in try_probe via connect time
-                st.latency_ms = None;
+                st.ip = None;
+                st.latency_ms = ms;
                 shared.set_status(st);
                 crate::sysproxy::enable(shared.proxy_port.load(Ordering::SeqCst));
                 return;
@@ -250,7 +253,10 @@ async fn connect_with_failover(shared: &Arc<Shared>, uplink: &Arc<Mutex<Option<A
 async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
     let t0 = std::time::Instant::now();
     let mut s = proto::dial(srv, dst).await?;
-    let req = format!("GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: veil\r\nConnection: close\r\n\r\n", dst.host);
+    let req = format!(
+        "GET /generate_204 HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n",
+        dst.host
+    );
     s.write_all(req.as_bytes()).await?;
     let mut buf = Vec::new();
     let mut tmp = [0u8; 2048];
@@ -265,10 +271,15 @@ async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
             Ok(Ok(n)) => {
                 buf.extend_from_slice(&tmp[..n]);
                 if let Ok(text) = std::str::from_utf8(&buf) {
-                    if let Some(pos) = text.find("\r\n\r\n") {
-                        let ip = text[pos + 4..].trim().to_string();
-                        if !ip.is_empty() {
-                            return Ok(ip);
+                    if let Some(pos) = text.find("\r\n") {
+                        let status = &text[..pos];
+                        if status.starts_with("HTTP/") {
+                            if status.contains(" 204") || status.contains(" 200")
+                                || status.contains(" 301") || status.contains(" 302") {
+                                let ms = t0.elapsed().as_millis() as u32;
+                                return Ok(format!("ok|{}", ms));
+                            }
+                            return Err(io::Error::new(io::ErrorKind::InvalidData, "bad probe status"));
                         }
                     }
                 }
@@ -281,16 +292,12 @@ async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
         }
     }
     let text = String::from_utf8_lossy(&buf);
-    let ip = text
-        .split("\r\n\r\n")
-        .nth(1)
-        .map(|b| b.trim().to_string())
-        .unwrap_or_default();
-    if ip.is_empty() || !ip.chars().next().map(|c| c.is_ascii_digit() || c == ':').unwrap_or(false) {
-        let _ = t0.elapsed();
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "bad probe response"));
+    let head = text.split("\r\n").next().unwrap_or("");
+    if head.starts_with("HTTP/") && (head.contains(" 204") || head.contains(" 200")) {
+        let ms = t0.elapsed().as_millis() as u32;
+        return Ok(format!("ok|{}", ms));
     }
-    Ok(ip)
+    Err(io::Error::new(io::ErrorKind::InvalidData, "bad probe response"))
 }
 
 async fn handle_local(

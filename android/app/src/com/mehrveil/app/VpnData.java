@@ -35,13 +35,20 @@ public final class VpnData {
     public static void setSink(Sink s) { sink = s; }
     public static void setCustomSource(String u) { customSource = (u == null || u.trim().isEmpty()) ? null : u.trim(); }
 
-    private static final String[][] SOURCES = {
-        {"https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
-         "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt"},
-        {"https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
-         "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt"},
-        {"https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt",
-         "https://cdn.jsdelivr.net/gh/barry-far/V2ray-Configs@main/All_Configs_Sub.txt"},
+    /** Fetch sources — ordered by reachability from Iran:
+     *  1) our own GitHub Pages subscription (verified pool, same domain the APK ships from)
+     *  2) gh-proxy mirrors of the big aggregators (raw.githubusercontent.com is blocked in Iran)
+     *  3) jsdelivr CDN mirrors
+     *  4) raw.githubusercontent last resort (works outside Iran) */
+    private static final String[] SOURCES = {
+        "https://parsa8j.github.io/VeilVPN/sub.txt",
+        "https://ghproxy.net/https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+        "https://gh-proxy.com/https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+        "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+        "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt",
+        "https://ghproxy.net/https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt",
+        "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+        "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
     };
 
     /** Seed nodes, instantly available. */
@@ -92,7 +99,7 @@ public final class VpnData {
         final Map<String, String> found = new LinkedHashMap<>();
         List<String> urls = new ArrayList<>();
         if (customSource != null) urls.add(customSource);
-        for (String[] src : SOURCES) { urls.add(src[0]); urls.add(src[1]); }
+        for (String src : SOURCES) urls.add(src);
         List<Thread> ts = new ArrayList<>();
         for (final String u : urls) {
             Thread t = new Thread(() -> {
@@ -146,18 +153,21 @@ public final class VpnData {
                 if (n != null && !PINGS.containsKey(id)) targets.add(n);
             }
         }
-        List<Thread> ts = new ArrayList<>();
-        for (Node n : targets) {
-            Thread t = new Thread(() -> {
+        // fixed-size worker pool — never one thread per node (thread-storm OOM on low-RAM phones)
+        final ExecutorService ex = Executors.newFixedThreadPool(Math.min(24, Math.max(1, targets.size())));
+        final Map<String, Long> got = new ConcurrentHashMap<>();
+        for (final Node n : targets) {
+            ex.execute(() -> {
                 long ms = tcpPing(n.host, n.port);
-                if (ms > 0) PINGS.put(n.id, ms);
+                if (ms > 0) { PINGS.put(n.id, ms); got.put(n.id, ms); }
             });
-            t.start(); ts.add(t);
         }
-        for (Thread t : ts) { try { t.join(4000); } catch (Throwable ignored) {} }
-        for (Node n : targets) {
-            Long p = PINGS.get(n.id);
-            try { if (p != null) out.put(n.id, p); } catch (Throwable ignored) {}
+        ex.shutdown();
+        try { ex.awaitTermination(4, java.util.concurrent.TimeUnit.SECONDS); } catch (Throwable ignored) {}
+        ex.shutdownNow();
+        for (String id : got.keySet()) {
+            Long p = got.get(id);
+            try { if (p != null) out.put(id, p); } catch (Throwable ignored) {}
         }
         return out;
     }
@@ -174,7 +184,12 @@ public final class VpnData {
 
     /* ---------- real end-to-end verification ---------- */
 
-    /** Full protocol handshake + DNS query through the tunnel. Same code path as connecting. */
+    /**
+     * Full protocol handshake + HTTP probe through the tunnel (same code path as connecting).
+     * Probe = cp.cloudflare.com/generate_204 on port 80: most proxy operators BLOCK port-53
+     * relaying (anti-abuse), so DNS-based checks fail on perfectly healthy nodes.
+     * cp.cloudflare.com is Cloudflare's connectivity check — reachable from Iran too.
+     */
     public static boolean verifyNode(Node n) {
         try {
             com.mehrveil.app.proto.Client c;
@@ -184,17 +199,25 @@ public final class VpnData {
                 case "ss": c = new com.mehrveil.app.proto.SsAead(n); break;
                 default: return false;
             }
-            com.mehrveil.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
-            byte[] q = {(0x2A & 0xFF), (0x81 & 0xFF), 0x01, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0,
-                        3, 'w', 'w', 'w', 7, 'g', 'o', 'o', 'g', 'l', 'e', 3, 'c', 'o', 'm', 0, 0, 1, 0, 1};
-            ch.out.write(q);
+            com.mehrveil.app.proto.Client.Channel ch = c.dial(n, "cp.cloudflare.com", 80);
+            byte[] req = ("GET /generate_204 HTTP/1.1\r\nHost: cp.cloudflare.com\r\n"
+                    + "User-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n").getBytes("UTF-8");
+            ch.out.write(req);
             ch.out.flush();
-            byte[] resp = new byte[512];
+            byte[] buf = new byte[256];
             int total = 0, r;
-            while (total < 17 && (r = ch.in.read(resp, total, resp.length - total)) > 0) total += r;
+            long deadline = System.currentTimeMillis() + 8000;
+            while (total < 12 && System.currentTimeMillis() < deadline) {
+                try { r = ch.in.read(buf, total, buf.length - total); }
+                catch (Throwable t) { break; }
+                if (r <= 0) break;
+                total += r;
+            }
             try { ch.in.close(); } catch (Throwable ignored) {}
             try { ch.out.close(); } catch (Throwable ignored) {}
-            return total >= 17 && (resp[2] & 0x80) != 0 && resp[0] == q[0] && resp[1] == q[1];
+            String head = new String(buf, 0, total, "UTF-8");
+            return head.startsWith("HTTP/1") &&
+                    (head.contains(" 204") || head.contains(" 200") || head.contains(" 301") || head.contains(" 302"));
         } catch (Throwable t) {
             return false;
         }
@@ -220,7 +243,7 @@ public final class VpnData {
                     if (VERIFIED.containsKey(n.id)) continue;
                     picked++;
                     Thread t = new Thread(() -> {
-                        VERIFIED.put(n.id, verifyNode(n));
+                        try { VERIFIED.put(n.id, verifyNode(n)); } catch (Throwable ignored) {}
                         push();
                     }, "verify");
                     t.start();
@@ -231,6 +254,8 @@ public final class VpnData {
                     }
                 }
                 for (Thread x : ts) try { x.join(25_000); } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+                // never let the verifier kill the process
             } finally {
                 verifying = false;
                 push();
@@ -243,7 +268,7 @@ public final class VpnData {
             HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
             con.setConnectTimeout(timeoutMs);
             con.setReadTimeout(timeoutMs);
-            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.5");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.6");
             int code = con.getResponseCode();
             if (code != 200) { con.disconnect(); return null; }
             InputStream in = con.getInputStream();

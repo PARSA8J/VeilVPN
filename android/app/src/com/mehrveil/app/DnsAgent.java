@@ -12,10 +12,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DnsAgent {
     private static final long POOL_BASE = 0x0A0B0000L;        // 10.11.0.x
+    private static int nextIdx = 2;                           // .1 is the TUN address itself — never allocate it
     private static final Map<Long, String> fake2host = new ConcurrentHashMap<>();
     private static final Map<String, Long> host2fake = new ConcurrentHashMap<>();
     private static final Map<String, byte[]> cache = new ConcurrentHashMap<>();
-    private static int nextIdx = 1;
 
     public static String reverse(long fakeIp) {
         return fake2host.get(fakeIp);
@@ -46,23 +46,15 @@ public final class DnsAgent {
                     sendUdp(pump, resp, srcIp, sport, dstIp);
                     return;
                 }
-                // cache miss: resolve off the pump thread, answer when ready
-                final byte[] q = query;
-                final TunPump fp = pump; final long fs = srcIp, fd = dstIp; final int fpo = sport; final String fh = h;
-                new Thread(() -> {
-                    try {
-                        String ip = resolveOverTunnel(ctx, fh);
-                        byte[] r;
-                        if (ip == null) {
-                            r = buildResp(q, false, null, 0);
-                        } else {
-                            long fake = allocFake(fh, (int) Ip4.ipVal(ip));
-                            cache.put(fh, new byte[]{(byte)(fake>>24),(byte)(fake>>16),(byte)(fake>>8),(byte)fake});
-                            r = buildResp(q, true, fake, 300);
-                        }
-                        sendUdp(fp, r, fs, fpo, fd);
-                    } catch (Throwable ignored) {}
-                }, "dns-resolve").start();
+                // Optimistic fake-IP (Clash-style): answer instantly with a mapped IP.
+                // The REAL resolution happens server-side — the proxy dials by hostname
+                // (TcpFlow passes DnsAgent.reverse(fakeIp) as the remote host).
+                // This removes the dependency on port-53 relaying, which most proxy
+                // operators block — tunnel-DNS here used to break ALL browsing.
+                long fake = allocFake(h, 0);
+                cache.put(h, new byte[]{(byte)(fake>>24),(byte)(fake>>16),(byte)(fake>>8),(byte)fake});
+                resp = buildResp(query, true, fake, 300);
+                sendUdp(pump, resp, srcIp, sport, dstIp);
                 return;
             } else {
                 resp = buildResp(query, false, null, 0);

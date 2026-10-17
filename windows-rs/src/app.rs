@@ -22,8 +22,6 @@ pub struct VeilApp {
     pub show_settings: bool,
     pub sub_input: String,
     pub toast: Option<(String, f64, bool)>, // text, shown_at_sec, is_error
-    pub acrylic_tried: u32,
-    pub acrylic_done: bool,
 }
 
 impl VeilApp {
@@ -62,8 +60,6 @@ impl VeilApp {
             show_settings: false,
             sub_input: config.custom_source.clone(),
             toast: None,
-            acrylic_tried: 0,
-            acrylic_done: false,
             config,
             engine,
             shared,
@@ -88,17 +84,6 @@ impl VeilApp {
             return Some(servers[i].clone());
         }
         None
-    }
-
-    fn try_acrylic(&mut self, ctx: &Context) {
-        if self.acrylic_done || self.acrylic_tried > 90 {
-            return;
-        }
-        self.acrylic_tried += 1;
-        if crate::sysproxy::apply_acrylic("Mehrveil") {
-            self.acrylic_done = true;
-            ctx.request_repaint();
-        }
     }
 }
 
@@ -129,8 +114,6 @@ fn setup_fonts(ctx: &Context) {
 
 impl eframe::App for VeilApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        self.try_acrylic(ctx);
-
         // periodic repaint for timer / animations
         let st = self.shared.status();
         if matches!(st.phase, Phase::Connected | Phase::Connecting | Phase::Disconnecting) {
@@ -149,12 +132,8 @@ impl eframe::App for VeilApp {
             .show(ctx, |ui| {
                 let avail = ui.available_size();
                 let (bg_rect, _) = ui.allocate_exact_size(avail, Sense::hover());
-                if !self.acrylic_done {
-                    paint_bg(ui.painter().clone(), bg_rect);
-                } else {
-                    // frost layer over the acrylic blur (kept opaque enough for VMs/RDP)
-                    ui.painter().rect_filled(bg_rect, 0.0, Color32::from_white_alpha(150));
-                }
+                // always paint the opaque gradient glass background — window itself is opaque
+                paint_bg(ui.painter().clone(), bg_rect);
                 self.ui_body(ui, ctx);
                 self.ui_toast(ui);
             });
@@ -342,10 +321,10 @@ impl VeilApp {
                 self.on_connect_click();
             }
 
-            // ip line
+            // status line: real measured probe latency (no fake IP)
             let mut ip_txt = String::new();
-            if let Some(ip) = &st.ip {
-                ip_txt.push_str(&format!("IP {}", ip));
+            if let Some(ms) = st.latency_ms {
+                ip_txt.push_str(&format!("{} ms", ms));
             }
             if let Some(s) = &st.active {
                 if !ip_txt.is_empty() {

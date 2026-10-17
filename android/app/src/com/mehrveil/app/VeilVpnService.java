@@ -32,17 +32,28 @@ public class VeilVpnService extends VpnService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String action = intent == null ? ACTION_CONNECT : intent.getAction();
-        if (ACTION_DISCONNECT.equals(action)) { stopAll("user"); return START_NOT_STICKY; }
-        if (working.compareAndSet(false, true)) {
-            startForeground(NOTIF_ID, buildNotification("Connecting…"));
-            List<Node> q = QUEUE;
-            if (q == null || q.isEmpty()) {
-                working.set(false);
-                stopAll("no servers");
-                return START_NOT_STICKY;
+        try {
+            String action = intent == null ? ACTION_CONNECT : intent.getAction();
+            if (ACTION_DISCONNECT.equals(action)) { stopAll("user"); return START_NOT_STICKY; }
+            if (working.compareAndSet(false, true)) {
+                try {
+                    startForeground(NOTIF_ID, buildNotification("Connecting…"));
+                } catch (Throwable t) {
+                    // some OEMs throw if the service start was background-restricted
+                    working.set(false);
+                    stopAll("service blocked");
+                    return START_NOT_STICKY;
+                }
+                List<Node> q = QUEUE;
+                if (q == null || q.isEmpty()) {
+                    working.set(false);
+                    stopAll("no servers");
+                    return START_NOT_STICKY;
+                }
+                new Thread(() -> runQueue(new ArrayList<>(q)), "veil-core").start();
             }
-            new Thread(() -> runQueue(new ArrayList<>(q)), "veil-core").start();
+        } catch (Throwable t) {
+            stopAll(firstMessage(t));
         }
         return START_NOT_STICKY;
     }
@@ -179,7 +190,7 @@ public class VeilVpnService extends VpnService {
     private Notification buildNotification(String text) {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CH) == null) {
-            nm.createNotificationChannel(new NotificationChannel(CH, "VeilVPN", NotificationManager.IMPORTANCE_LOW));
+            nm.createNotificationChannel(new NotificationChannel(CH, "Mehrveil", NotificationManager.IMPORTANCE_LOW));
         }
         Notification.Builder nb = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CH)
@@ -187,7 +198,7 @@ public class VeilVpnService extends VpnService {
         PendingIntent pi = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
                 Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
         nb.setSmallIcon(getApplicationInfo().icon)
-                .setContentTitle("VeilVPN")
+                .setContentTitle("Mehrveil")
                 .setContentText(text)
                 .setOngoing(true)
                 .setContentIntent(pi);

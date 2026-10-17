@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.5 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.6 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -32,7 +32,12 @@ var BRIDGE = {
       body: JSON.stringify(payload)
     }).then(function(r){ return r.json(); });
   },
-  resolve: function(cbId, json){ var c=this.cbs[cbId]; if(c){ delete this.cbs[cbId]; try{ c.res(JSON.parse(json)); }catch(e){ c.res({}); } } },
+  resolve: function(cbId, json){
+    var c=this.cbs[cbId]; if(!c) return; delete this.cbs[cbId];
+    /* Android bridge passes a JS object literal; other platforms may pass a JSON string. */
+    if (typeof json === 'string'){ try{ json=JSON.parse(json); }catch(e){ json={}; } }
+    c.res(json||{});
+  },
   reject: function(cbId, msg){ var c=this.cbs[cbId]; if(c){ delete this.cbs[cbId]; c.rej(new Error(msg)); } }
 };
 window.__nCb = function(id, json){ BRIDGE.resolve(id, json); };
@@ -405,7 +410,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.5 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.6 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();

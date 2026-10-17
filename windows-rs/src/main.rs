@@ -51,9 +51,19 @@ fn main() -> eframe::Result<()> {
             .with_inner_size([400.0, 680.0])
             .with_min_inner_size([360.0, 580.0])
             .with_icon(load_icon())
-            .with_transparent(true)
+            // NOTE: window is intentionally OPAQUE.
+            // with_transparent(true) + acrylic breaks frame presentation (glow/WGL)
+            // on many Windows setups (VMs, RDP, Intel drivers) -> solid white window.
+            // The liquid-glass look is fully painted by egui itself instead.
             .with_decorations(false),
         ..Default::default()
     };
-    eframe::run_native("Mehrveil", options, Box::new(|cc| Ok(Box::new(app::VeilApp::new(cc)))))
+    match eframe::run_native("Mehrveil", options, Box::new(|cc| Ok(Box::new(app::VeilApp::new(cc))))) {
+        ok @ Ok(_) => ok,
+        Err(e) => {
+            // last-resort: tell the user why the window failed instead of dying silently
+            crate::sysproxy::error_box("Mehrveil", &format!("Failed to start graphics engine:\n{}\n\nPlease update your GPU/graphics driver and try again.", e));
+            Err(e)
+        }
+    }
 }

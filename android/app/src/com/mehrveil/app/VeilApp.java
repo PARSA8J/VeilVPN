@@ -18,9 +18,15 @@ public class VeilApp extends Application {
                 PrintWriter pw = new PrintWriter(new File(getExternalFilesDir(null), "crash.txt"));
                 e.printStackTrace(pw);
                 pw.close();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+                try {
+                    PrintWriter pw2 = new PrintWriter(new File(getFilesDir(), "crash.txt"));
+                    e.printStackTrace(pw2);
+                    pw2.close();
+                } catch (Throwable ignored2) {}
+            }
             try {
-                Toast.makeText(this, "VeilVPN 1.5.1 crash — restart", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Mehrveil crashed — report Mehrveil/crash.txt", Toast.LENGTH_LONG).show();
             } catch (Throwable ignored) {}
             try { Thread.sleep(400); } catch (Throwable ignored) {}
             if (prev != null) prev.uncaughtException(t, e);

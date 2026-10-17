@@ -12,60 +12,17 @@ mod imp {
         KEY_QUERY_VALUE, KEY_SET_VALUE, REG_DWORD, REG_SZ,
     };
 
-    // ---- acrylic blur-behind (undocumented but stable API) ----
-    #[repr(C)]
-    struct AccentPolicy {
-        accent_state: u32,
-        accent_flags: u32,
-        gradient_color: u32,
-        animation_id: u32,
-    }
-    #[repr(C)]
-    struct WcaData {
-        attribute: u32,
-        data: *mut AccentPolicy,
-        size_of_data: u32,
-        unused: u32,
-    }
-    #[repr(C)]
-    struct Margins {
-        cx_left: i32,
-        cx_right: i32,
-        cy_top: i32,
-        cy_bottom: i32,
-    }
+    // ---- native error box (last-resort startup failure report) ----
     #[link(name = "user32")]
     extern "system" {
-        fn FindWindowW(lpclassname: *const u16, lptitle: *const u16) -> *mut core::ffi::c_void;
-        fn SetWindowCompositionAttribute(hwnd: *mut core::ffi::c_void, data: *mut WcaData) -> i32;
-    }
-    #[link(name = "dwmapi")]
-    extern "system" {
-        fn DwmExtendFrameIntoClientArea(hwnd: *mut core::ffi::c_void, margins: *const Margins) -> i32;
+        fn MessageBoxW(hwnd: *mut core::ffi::c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
     }
 
-    pub fn apply_acrylic(title: &str) -> bool {
+    pub fn error_box(title: &str, text: &str) {
         unsafe {
             let t: Vec<u16> = title.encode_utf16().chain([0]).collect();
-            let hwnd = FindWindowW(std::ptr::null(), t.as_ptr());
-            if hwnd.is_null() {
-                return false;
-            }
-            let mut pol = AccentPolicy {
-                accent_state: 4,        // ACCENT_ENABLE_ACRYLICBLURBEHIND
-                accent_flags: 2,        // draw all borders
-                gradient_color: 0xB4FFFFFF, // ABGR: white @ ~70% alpha
-                animation_id: 0,
-            };
-            let mut data = WcaData {
-                attribute: 19, // WCA_ACCENT_POLICY
-                data: &mut pol,
-                size_of_data: std::mem::size_of::<AccentPolicy>() as u32,
-                unused: 0,
-            };
-            SetWindowCompositionAttribute(hwnd, &mut data);
-            DwmExtendFrameIntoClientArea(hwnd, &Margins { cx_left: 1, cx_right: 1, cy_top: 1, cy_bottom: 1 });
-            true
+            let b: Vec<u16> = text.encode_utf16().chain([0]).collect();
+            MessageBoxW(std::ptr::null_mut(), b.as_ptr(), t.as_ptr(), 0x10); // MB_ICONERROR
         }
     }
 
@@ -226,9 +183,7 @@ mod imp {
 mod imp {
     pub fn enable(_port: u16) {}
     pub fn disable() {}
-    pub fn apply_acrylic(_title: &str) -> bool {
-        false
-    }
+    pub fn error_box(_title: &str, _text: &str) {}
 }
 
 pub fn enable(port: u16) {
@@ -237,6 +192,6 @@ pub fn enable(port: u16) {
 pub fn disable() {
     imp::disable();
 }
-pub fn apply_acrylic(title: &str) -> bool {
-    imp::apply_acrylic(title)
+pub fn error_box(title: &str, text: &str) {
+    imp::error_box(title, text);
 }

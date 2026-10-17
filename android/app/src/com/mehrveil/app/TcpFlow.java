@@ -49,11 +49,12 @@ public class TcpFlow {
         lastActive = System.currentTimeMillis();
         int ipHdrLen = (pkt[0] & 0xF) * 4;
         int dataOff = (pkt[tcpOff + 12] >> 4) * 4;
-        int flags = pkt[tcpOff + 13] & 0x1FF;
+        int flags = pkt[tcpOff + 13] & 0xFF;
         long seq = Ip4.u32(pkt, tcpOff + 4) & 0xFFFFFFFFL;
         int win = Ip4.u16(pkt, tcpOff + 14);
         if (win > 0) peerWindow = win;
         int payloadLen = totalLen - ipHdrLen - dataOff;
+        if (payloadLen < 0) payloadLen = 0;
 
         if ((flags & SYN) != 0 && !synSent) {
             synSent = true;
@@ -129,14 +130,23 @@ public class TcpFlow {
     }
 
     private void pumpRemote() {
-        byte[] buf = new byte[16384];
+        // MTU is 8500 (set in VeilVpnService): an IP packet written to the TUN must be
+        // <= MTU, otherwise the write fails silently and ALL download traffic dies.
+        // 20B IP + 20B TCP headers -> max payload 8000. Larger remote reads are split.
+        final int CHUNK = 8000;
+        byte[] buf = new byte[CHUNK];
         try {
             int n;
             while (running.get() && !closed && (n = remoteIn.read(buf)) > 0) {
-                byte[] chunk = new byte[n];
-                System.arraycopy(buf, 0, chunk, 0, n);
-                send(seqNum, ackNum, PSH | ACK, chunk);
-                seqNum += n;
+                int off = 0;
+                while (off < n) {
+                    int len = Math.min(CHUNK, n - off);
+                    byte[] chunk = new byte[len];
+                    System.arraycopy(buf, off, chunk, 0, len);
+                    send(seqNum, ackNum, PSH | ACK, chunk);
+                    seqNum += len;
+                    off += len;
+                }
             }
         } catch (Throwable ignored) {}
         if (running.get() && !closed) {

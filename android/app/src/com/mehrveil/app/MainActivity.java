@@ -182,7 +182,7 @@ public class MainActivity extends Activity {
                             o.put("platform", "android");
                             String ver;
             try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
-            catch (Throwable t) { ver = "1.6.5"; }
+            catch (Throwable t) { ver = "1.6.6"; }
             o.put("version", ver);
                             o.put("features", new JSONObject()
                                     .put("kill", VpnController.get().killSwitch)
@@ -271,15 +271,32 @@ public class MainActivity extends Activity {
                 catch (Throwable ignored) {}
                 return;
             }
+            // serialize sessions: tear down any previous TUN before starting a new one
+            // (double-establish left two pumps running and broke the tunnel)
+            String cur = VpnController.get().state();
+            if (cur.equals(VpnController.CONNECTED) || cur.equals(VpnController.CONNECTING)
+                    || cur.equals(VpnController.RECONNECTING)) {
+                Intent stop = new Intent(MainActivity.this, VeilVpnService.class)
+                        .setAction(VeilVpnService.ACTION_DISCONNECT);
+                try { startService(stop); } catch (Throwable ignored) {}
+                try { Thread.sleep(600); } catch (Throwable ignored) {}
+            }
             pendingNode = node;
             pendingCb = cbId;
+            final boolean[] needPerm = {false};
+            final Intent[] prepare = {null};
             try {
-                Intent prepare = VpnService.prepare(MainActivity.this);
-                if (prepare != null) {
-                    startActivityForResult(prepare, REQ_VPN);
-                    return;                      // reply sent in onActivityResult
-                }
+                prepare[0] = VpnService.prepare(MainActivity.this);
+                needPerm[0] = prepare[0] != null;
             } catch (Throwable t) { /* fallthrough */ }
+            if (needPerm[0]) {
+                // VpnService.prepare dialog MUST be launched from the main thread
+                main.post(() -> {
+                    try { startActivityForResult(prepare[0], REQ_VPN); }
+                    catch (Throwable t) { startCoreConnect(cbId); }
+                });
+                return;                      // reply sent in onActivityResult
+            }
             startCoreConnect(cbId);
         }
     }
