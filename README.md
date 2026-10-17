@@ -25,11 +25,11 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.2.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.2.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.2/Mehrveil-1.6.2.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.2.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.3.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.3.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.3/Mehrveil-1.6.3.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.3.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.3.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases (v1.5.1 / v1.6.1) have been removed** — only **v1.6.2** is distributed. Download **only** the file named `Mehrveil-1.6.2.apk`.
-> ✅ File integrity — the correct APK is exactly **136,274 bytes (~133 KB)** · SHA-256 `747eb3c1c8ae5caf66f3e89993182ba841743f36b42a1430fa1ee91f3ecb79e0`. A different size = corrupted download → re-download from the direct link.
+> ⚠️ **Old releases have been removed** — only **v1.6.3** is distributed. Download **only** the file named `Mehrveil-1.6.3.apk`.
+> ✅ File integrity — the correct APK is exactly **136,274 bytes (~133 KB)** · SHA-256 `81fdebe0416c1d188eec4fcdfa850e25231000c0d5a85594899a7dbd108a9427`. A different size = corrupted download → re-download from the direct link.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -56,19 +56,24 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 <details>
 <summary><b>❓ "App not installed" — read this</b></summary>
 
-**v1.6.2 ships under a brand-new app identity (`com.mehrveil.app`)** — it installs as a completely fresh app on every device, so **any previously installed VeilVPN (any signature) can no longer block it**. No uninstall needed.
+**v1.6.2+ ships under a brand-new app identity (`com.mehrveil.app`)** — it installs as a completely fresh app on every device, so **any previously installed VeilVPN (any signature) can no longer block it**. No uninstall needed.
 
 What was fixed, version by version:
+- **v1.6.3** → fresh build + new version code (clears any stuck install session on the device).
 - **v1.6.2** → new package name + supports **Android 5.0+** (was 7.0+) + v1/v2/v3 signatures all embedded.
 - **v1.6.1** → fixed the mis-packaged `resources.arsc` (was compressed; Android 11+ rejects that).
-- **v1.5.1 and older files are no longer distributed** (they were the broken builds). If your file manager shows anything other than `Mehrveil-1.6.2.apk`, you are installing an old file — download fresh from the **direct link** above.
-- Still failing? The downloaded file must be ~136 KB and named `Mehrveil-1.6.2.apk` — a truncated download produces the exact same error. If Play Protect asks, tap **Install anyway**.
+
+If the installer shows the app name + icon but still says **«App not installed»**, your PHONE is blocking the install — the file itself is fine (a broken file can't show the app name/icon). Fix it on the phone:
+1. **Samsung — Auto Blocker** (top cause on One UI): Settings → **Security and privacy → Auto Blocker** → turn it **off** (or disable *Block app installs*), then install again.
+2. **Play Protect**: Play Store → profile icon → **Play Protect** → gear icon → turn **off** *Scan apps with Play Protect* → install → turn it back on after.
+3. **Airplane-mode trick**: turn on Airplane mode, install the APK (Play Protect can't fetch a remote verdict), turn it off after.
+4. **Reboot** the phone, make sure ≥200 MB free storage, then install.
 - Verify the signature: certificate SHA-256
   `8c1859dbf7a7f95bfe18ba228182ec73dee9ebb30a603c76987923d83ef7812d`.
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.2.exe` and run it — no installer, no browser, no dependencies.
+1. Download `Mehrveil-1.6.3.exe` and run it — no installer, no browser, no dependencies.
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
 
 ## 🔒 Security
@@ -87,14 +92,14 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.2.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.3.apk
 ```
 
 ### Windows (native Rust)
 ```bash
 rustup target add x86_64-pc-windows-gnu
 cd windows-rs && cargo test   # end-to-end protocol tests against simulated servers
-cd .. && bash scripts/build_exe.sh   # -> Mehrveil-1.6.2.exe
+cd .. && bash scripts/build_exe.sh   # -> Mehrveil-1.6.3.exe
 ```
 
 ### Server seed list
@@ -126,8 +131,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.2.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.2.exe`) — اپ کاملاً **نیتیو Rust** (بدون مرورگر!) با بلور واقعی Acrylic + هستهٔ پروکسی داخل خود exe + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.3.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.3.exe`) — اپ کاملاً **نیتیو Rust** (بدون مرورگر!) با بلور واقعی Acrylic + هستهٔ پروکسی داخل خود exe + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -139,20 +144,27 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.2.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.2.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.2/Mehrveil-1.6.2.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.2.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.3.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.3.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.3/Mehrveil-1.6.3.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.3.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.3.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی (v1.5.1 / v1.6.1) حذف شدند** — فقط **v1.6.2** توزیع می‌شود. فقط فایلی با نام `Mehrveil-1.6.2.apk` را دانلود کن.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.3** توزیع می‌شود. فقط فایلی با نام `Mehrveil-1.6.3.apk` را دانلود کن.
 > ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۳۶٬۲۷۴ بایت (~۱۳۳ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
 
 ### ❓ «App not installed» — عیب‌یابی
 
-**نسخهٔ ۱.۶.۲ با هویت کاملاً جدید (`com.mehrveil.app`) منتشر شده** — روی هر دستگاهی به‌عنوان یک اپ تازه نصب می‌شود و **نسخه‌های قبلی VeilVPN (با هر امضایی) دیگر مانع نصب نیستند**. دیگر نیازی به پاک‌کردن نسخهٔ قبلی نیست.
+**اگر نصب‌کننده اسم و آیکون اپ را نشان می‌دهد ولی باز «App not installed» می‌دهد، فایل سالم است و گوشی‌ات جلوی نصب را می‌گیرد.** به‌ترتیب این‌ها را امتحان کن:
 
-- **۱.۶.۲** → اسم و پکیج جدید + پشتیبانی از **اندروید ۵ به بالا** (قبلاً ۷ بود) + امضای v1/v2/v3
+1. **سامسونگ — Auto Blocker** (مهم‌ترین دلیل در One UI): Settings → **Security and privacy → Auto Blocker** → خاموشش کن (یا فقط گزینهٔ *Block app installs* را بردار) → دوباره نصب کن.
+2. **Play Protect**: اپ Google Play → عکس پروفایل → **Play Protect** → آیکون چرخ‌دنده → *Scan apps with Play Protect* را **خاموش** کن → نصب کن → بعد دوباره روشنش کن.
+3. **ترفند حالت هواپیما**: Airplane mode را روشن کن، فایل را نصب کن (Play Protect نمی‌تواند آنلاین چک کند)، بعد هواپیما را خاموش کن.
+4. گوشی را **ری‌استارت** کن و حداقل ۲۰۰ مگابایت فضای خالی داشته باش، بعد نصب کن.
+
+نکات فنی:
+
+- **۱.۶.۳** → بیلد تازه + versionCode جدید (هر نصب نیمه‌کارهٔ گیرکرده را هم پاک می‌کند)
+- **۱.۶.۲** → هویت و پکیج جدید (`com.mehrveil.app`، بدون تداخل با هیچ نسخهٔ قبلی) + **اندروید ۵ به بالا** + امضای v1/v2/v3
 - **۱.۶.۱** → فیکس بسته‌بندی `resources.arsc` که اندروید ۱۱+ ردش می‌کرد
-- **فایل‌های قدیمی‌تر توزیع نمی‌شوند** (همان‌ها خراب بودند). اگر فایل منیجرت چیزی جز `Mehrveil-1.6.2.apk` نشان می‌دهد، داری فایل قدیمی نصب می‌کنی — از **لینک مستقیم** بالا تازه دانلود کن.
-- اگر باز هم نشد: فایل باید دقیقاً **۱۳۶٬۲۷۴ بایت** باشد — حجم متفاوت یعنی دانلود ناقص. اگر Play Protect هشدار داد → «Install anyway».
+
 ### 📄 مجوز
 
 MIT — کامل آزاد.
