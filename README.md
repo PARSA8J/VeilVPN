@@ -25,8 +25,11 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.2.apk](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.apk) | Android 5.0+ (all CPUs) |
+| 📱 Android | [Mehrveil-1.6.2.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.2.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.2/Mehrveil-1.6.2.apk) | Android 5.0+ (all CPUs) |
 | 🖥️ Windows | [Mehrveil-1.6.2.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.exe) | Windows 10/11 64-bit |
+
+> ⚠️ **Old releases (v1.5.1 / v1.6.1) have been removed** — only **v1.6.2** is distributed. Download **only** the file named `Mehrveil-1.6.2.apk`.
+> ✅ File integrity — the correct APK is exactly **136,274 bytes (~133 KB)** · SHA-256 `747eb3c1c8ae5caf66f3e89993182ba841743f36b42a1430fa1ee91f3ecb79e0`. A different size = corrupted download → re-download from the direct link.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -58,6 +61,7 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 What was fixed, version by version:
 - **v1.6.2** → new package name + supports **Android 5.0+** (was 7.0+) + v1/v2/v3 signatures all embedded.
 - **v1.6.1** → fixed the mis-packaged `resources.arsc` (was compressed; Android 11+ rejects that).
+- **v1.5.1 and older files are no longer distributed** (they were the broken builds). If your file manager shows anything other than `Mehrveil-1.6.2.apk`, you are installing an old file — download fresh from the **direct link** above.
 - Still failing? The downloaded file must be ~136 KB and named `Mehrveil-1.6.2.apk` — a truncated download produces the exact same error. If Play Protect asks, tap **Install anyway**.
 - Verify the signature: certificate SHA-256
   `8c1859dbf7a7f95bfe18ba228182ec73dee9ebb30a603c76987923d83ef7812d`.
@@ -135,8 +139,11 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.2.apk](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.apk) | اندروید ۵+ |
+| 📱 اندروید | [Mehrveil-1.6.2.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.2.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.2/Mehrveil-1.6.2.apk) | اندروید ۵+ |
 | 🖥️ ویندوز | [Mehrveil-1.6.2.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.2.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+
+> ⚠️ **ریلیزهای قدیمی (v1.5.1 / v1.6.1) حذف شدند** — فقط **v1.6.2** توزیع می‌شود. فقط فایلی با نام `Mehrveil-1.6.2.apk` را دانلود کن.
+> ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۳۶٬۲۷۴ بایت (~۱۳۳ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
 
 ### ❓ «App not installed» — عیب‌یابی
 
@@ -144,7 +151,8 @@ MIT — completely free, use it however you like.
 
 - **۱.۶.۲** → اسم و پکیج جدید + پشتیبانی از **اندروید ۵ به بالا** (قبلاً ۷ بود) + امضای v1/v2/v3
 - **۱.۶.۱** → فیکس بسته‌بندی `resources.arsc` که اندروید ۱۱+ ردش می‌کرد
-- اگر باز نشد: فایل باید حدود ۱۳۶ کیلوبایت و با نام `Mehrveil-1.6.2.apk` باشد — دانلود ناقص همین ارور را می‌دهد. اگر Play Protect هشدار داد → «نصب همان‌جا / Install anyway».
+- **فایل‌های قدیمی‌تر توزیع نمی‌شوند** (همان‌ها خراب بودند). اگر فایل منیجرت چیزی جز `Mehrveil-1.6.2.apk` نشان می‌دهد، داری فایل قدیمی نصب می‌کنی — از **لینک مستقیم** بالا تازه دانلود کن.
+- اگر باز هم نشد: فایل باید دقیقاً **۱۳۶٬۲۷۴ بایت** باشد — حجم متفاوت یعنی دانلود ناقص. اگر Play Protect هشدار داد → «Install anyway».
 ### 📄 مجوز
 
 MIT — کامل آزاد.
