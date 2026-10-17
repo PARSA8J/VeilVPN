@@ -109,6 +109,9 @@ public final class VpnController {
                 if (n.cc != null && n.cc.equals(chosen.cc) && !n.id.equals(chosen.id) && out.size() < 4) out.add(n);
         }
         pool.sort((a, b) -> {
+            Boolean va2 = VpnData.VERIFIED.get(a.id), vb2 = VpnData.VERIFIED.get(b.id);
+            int av = Boolean.TRUE.equals(va2) ? 0 : 1, bv = Boolean.TRUE.equals(vb2) ? 0 : 1;
+            if (av != bv) return Integer.compare(av, bv);
             Long pa = a.ping, pb = b.ping;
             long va = pa == null ? 9999 : pa, vb = pb == null ? 9999 : pb;
             return Long.compare(va, vb);

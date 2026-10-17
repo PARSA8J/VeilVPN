@@ -66,7 +66,7 @@ public class VeilVpnService extends VpnService {
                 .addAddress("10.11.0.1", 24)
                 .addDnsServer("10.11.0.1")
                 .addRoute("0.0.0.0", 0)
-                .setSession("VeilVPN");
+                .setSession("Mehrveil");
         try { b.addDisallowedApplication(getPackageName()); } catch (Throwable ignored) {}
         if (Build.VERSION.SDK_INT >= 29) {
             b.setMetered(false);

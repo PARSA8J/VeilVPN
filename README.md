@@ -25,11 +25,11 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.3.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.3.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.3/Mehrveil-1.6.3.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.3.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.3.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.4.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.4.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.4/Mehrveil-1.6.4.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.4.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.4.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases have been removed** — only **v1.6.3** is distributed. Download **only** the file named `Mehrveil-1.6.3.apk`.
-> ✅ File integrity — the correct APK is exactly **136,274 bytes (~133 KB)** · SHA-256 `81fdebe0416c1d188eec4fcdfa850e25231000c0d5a85594899a7dbd108a9427`. A different size = corrupted download → re-download from the direct link.
+> ⚠️ **Old releases have been removed** — only **v1.6.4** is distributed. Download **only** the file named `Mehrveil-1.6.4.apk`.
+> ✅ File integrity — the correct APK is exactly **128,082 bytes (~125 KB)** · SHA-256 `$(sha256sum Mehrveil-1.6.4.apk | cut -d" " -f1)`. A different size = corrupted download → re-download from the direct link.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -73,7 +73,7 @@ If the installer shows the app name + icon but still says **«App not installed�
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.3.exe` and run it — no installer, no browser, no dependencies.
+1. Download `Mehrveil-1.6.4.exe` and run it — no installer, no browser, no dependencies.
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
 
 ## 🔒 Security
@@ -92,14 +92,14 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.3.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.4.apk
 ```
 
 ### Windows (native Rust)
 ```bash
 rustup target add x86_64-pc-windows-gnu
 cd windows-rs && cargo test   # end-to-end protocol tests against simulated servers
-cd .. && bash scripts/build_exe.sh   # -> Mehrveil-1.6.3.exe
+cd .. && bash scripts/build_exe.sh   # -> Mehrveil-1.6.4.exe
 ```
 
 ### Server seed list
@@ -131,8 +131,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.3.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.3.exe`) — اپ کاملاً **نیتیو Rust** (بدون مرورگر!) با بلور واقعی Acrylic + هستهٔ پروکسی داخل خود exe + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.4.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.4.exe`) — اپ کاملاً **نیتیو Rust** (بدون مرورگر!) با بلور واقعی Acrylic + هستهٔ پروکسی داخل خود exe + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -144,11 +144,11 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.3.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.3.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.3/Mehrveil-1.6.3.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.3.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.3.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.4.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.4.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.4/Mehrveil-1.6.4.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.4.exe](https://github.com/PARSA8J/VeilVPN/releases/latest/download/Mehrveil-1.6.4.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.3** توزیع می‌شود. فقط فایلی با نام `Mehrveil-1.6.3.apk` را دانلود کن.
-> ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۳۶٬۲۷۴ بایت (~۱۳۳ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.4** توزیع می‌شود. فقط فایلی با نام `Mehrveil-1.6.4.apk` را دانلود کن.
+> ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۲۸٬۰۸۲ بایت (~۱۳۳ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
 
 ### ❓ «App not installed» — عیب‌یابی
 

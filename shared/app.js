@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.3 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.4 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -142,10 +142,14 @@ function renderServers(){
     updateShowAllBtn();
     return;
   }
-  var tested=state.servers.filter(function(s){return s.ping!=null;});
-  var untested=state.servers.filter(function(s){return s.ping==null;});
-  var view = state.showAll ? state.servers
-           : (tested.length ? tested.slice(0,24) : state.servers.slice(0,24));
+  var tested=state.servers.filter(function(s){return s.ping!=null||s.ok===true;});
+  var untested=state.servers.filter(function(s){return s.ping==null&&s.ok!==true;});
+  var verified=state.servers.filter(function(s){return s.ok===true;});
+  var view;
+  if(state.showAll) view=state.servers;
+  else if(verified.length) view=verified.concat(tested.filter(function(s){return s.ok!==true;})).slice(0,24);
+  else if(tested.length) view=tested.slice(0,24);
+  else view=state.servers.slice(0,24);
   var frag=document.createDocumentFragment();
   view.forEach(function(s){
     var b=document.createElement('button');
@@ -153,7 +157,9 @@ function renderServers(){
     b.type='button'; b.dataset.id=s.id;
     var nm=esc(s.name||ccName(s.cc)), ct=esc(s.city||ccCity(s.cc));
     var pg;
-    if(s.ping!=null) pg='<span class="server-ping '+pingClass(s.ping)+'"><span class="ping-dot"></span>'+s.ping+' ms</span>';
+    if(s.ok===true)  pg='<span class="server-ping good"><span class="ping-dot"></span>\u2713 '+window.t('verified')+'</span>';
+    else if(s.ok===false) pg='<span class="server-ping far"><span class="ping-dot"></span>\u00d7</span>';
+    else if(s.ping!=null) pg='<span class="server-ping '+pingClass(s.ping)+'"><span class="ping-dot"></span>'+s.ping+' ms</span>';
     else if(s.dead)  pg='<span class="server-ping far"><span class="ping-dot"></span>—</span>';
     else             pg='<span class="server-ping"><span class="ping-dot"></span>···</span>';
     b.innerHTML='<span class="server-flag">'+ccFlag(s.cc)+'</span>'+
@@ -457,7 +463,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.3 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.4 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();

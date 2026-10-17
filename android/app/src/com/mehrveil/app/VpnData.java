@@ -24,6 +24,9 @@ import java.util.concurrent.Executors;
 public final class VpnData {
     public static final List<Node> NODES = new ArrayList<>();
     public static final Map<String, Long> PINGS = new ConcurrentHashMap<>();
+    /** Real end-to-end verification results: id -> alive (full protocol handshake + DNS through tunnel). */
+    public static final Map<String, Boolean> VERIFIED = new ConcurrentHashMap<>();
+    private static volatile boolean verifying = false;
     private static final ExecutorService POOL = Executors.newFixedThreadPool(6);
     public interface Sink { void onServers(JSONArray arr); }
     private static volatile Sink sink;
@@ -70,6 +73,8 @@ public final class VpnData {
                 JSONObject o = n.toJson();
                 Long p = PINGS.get(n.id);
                 try { if (p != null) o.put("ping", p); } catch (Throwable ignored) {}
+                Boolean v = VERIFIED.get(n.id);
+                try { if (v != null && v) o.put("ok", true); else if (v != null) o.put("ok", false); } catch (Throwable ignored) {}
                 arr.put(o);
             }
         }
@@ -167,12 +172,78 @@ public final class VpnData {
         } catch (Throwable t) { return -1; }
     }
 
+    /* ---------- real end-to-end verification ---------- */
+
+    /** Full protocol handshake + DNS query through the tunnel. Same code path as connecting. */
+    public static boolean verifyNode(Node n) {
+        try {
+            com.mehrveil.app.proto.Client c;
+            switch (n.proto) {
+                case "vless": c = new com.mehrveil.app.proto.Vless(n); break;
+                case "trojan": c = new com.mehrveil.app.proto.Trojan(n); break;
+                case "ss": c = new com.mehrveil.app.proto.SsAead(n); break;
+                default: return false;
+            }
+            com.mehrveil.app.proto.Client.Channel ch = c.dial(n, "1.1.1.1", 53);
+            byte[] q = {(0x2A & 0xFF), (0x81 & 0xFF), 0x01, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0,
+                        3, 'w', 'w', 'w', 7, 'g', 'o', 'o', 'g', 'l', 'e', 3, 'c', 'o', 'm', 0, 0, 1, 0, 1};
+            ch.out.write(q);
+            ch.out.flush();
+            byte[] resp = new byte[512];
+            int total = 0, r;
+            while (total < 17 && (r = ch.in.read(resp, total, resp.length - total)) > 0) total += r;
+            try { ch.in.close(); } catch (Throwable ignored) {}
+            try { ch.out.close(); } catch (Throwable ignored) {}
+            return total >= 17 && (resp[2] & 0x80) != 0 && resp[0] == q[0] && resp[1] == q[1];
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Verify up to `limit` not-yet-verified nodes (fastest-pinged first), 8 at a time. */
+    public static void startVerifyAsync(final int limit) {
+        if (verifying) return;
+        verifying = true;
+        new Thread(() -> {
+            try {
+                List<Node> targets;
+                synchronized (NODES) { targets = new ArrayList<>(NODES); }
+                targets.sort((a, b) -> {
+                    Long pa = PINGS.get(a.id), pb = PINGS.get(b.id);
+                    long va = pa == null ? 8888 : pa, vb = pb == null ? 8888 : pb;
+                    return Long.compare(va, vb);
+                });
+                int picked = 0;
+                List<Thread> ts = new ArrayList<>();
+                for (Node n : targets) {
+                    if (picked >= limit) break;
+                    if (VERIFIED.containsKey(n.id)) continue;
+                    picked++;
+                    Thread t = new Thread(() -> {
+                        VERIFIED.put(n.id, verifyNode(n));
+                        push();
+                    }, "verify");
+                    t.start();
+                    ts.add(t);
+                    if (ts.size() >= 8) {
+                        for (Thread x : ts) try { x.join(25_000); } catch (Throwable ignored) {}
+                        ts.clear();
+                    }
+                }
+                for (Thread x : ts) try { x.join(25_000); } catch (Throwable ignored) {}
+            } finally {
+                verifying = false;
+                push();
+            }
+        }, "verify-batch").start();
+    }
+
     public static String httpGet(String url, int timeoutMs, int limit) {
         try {
             HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
             con.setConnectTimeout(timeoutMs);
             con.setReadTimeout(timeoutMs);
-            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.3");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) Mehrveil/1.6.4");
             int code = con.getResponseCode();
             if (code != 200) { con.disconnect(); return null; }
             InputStream in = con.getInputStream();

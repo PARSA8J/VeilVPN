@@ -8,10 +8,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.security.MessageDigest;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
@@ -20,7 +22,7 @@ import javax.crypto.spec.SecretKeySpec;
  * each chunk encrypted with incrementing nonce, first target header inside first chunk.
  */
 public final class SsAead extends BaseClient {
-    private static final int TAG = 16;
+    private static final int TAG_BITS = 128;   // GCM tag length in BITS (GCMParameterSpec takes bits)
 
     public SsAead(Node n) { super(n); }
 
@@ -109,10 +111,12 @@ public final class SsAead extends BaseClient {
 
     private void encryptChunk(Cipher cipher, SecretKeySpec key, byte[] nonce, byte[] payload, ByteArrayOutputStream out) throws Exception {
         byte[] lenBuf = {(byte) ((payload.length >> 8) & 0xFF), (byte) (payload.length & 0xFF)};
-        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG, nonce));
+        AlgorithmParameterSpec spec = (cipher.getAlgorithm().contains("ChaCha")) ? new IvParameterSpec(nonce) : new GCMParameterSpec(TAG_BITS, nonce);
+        cipher.init(Cipher.ENCRYPT_MODE, key, spec);
         byte[] lenEnc = cipher.doFinal(lenBuf);
         increment(nonce);
-        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG, nonce));
+        spec = (cipher.getAlgorithm().contains("ChaCha")) ? new IvParameterSpec(nonce) : new GCMParameterSpec(TAG_BITS, nonce);
+        cipher.init(Cipher.ENCRYPT_MODE, key, spec);
         byte[] dataEnc = cipher.doFinal(payload);
         increment(nonce);
         out.write(lenEnc);
@@ -146,14 +150,17 @@ public final class SsAead extends BaseClient {
             this.key = new SecretKeySpec(sub, chacha ? "ChaCha20" : "AES");
             this.nonce = new byte[12];
             this.cipher = Cipher.getInstance(chacha ? "ChaCha20-Poly1305" : "AES/GCM/NoPadding");
+            this.specFor = chacha;
         }
+        final boolean specFor;
+        private AlgorithmParameterSpec spec(byte[] n) { return specFor ? new IvParameterSpec(n) : new GCMParameterSpec(128, n); }
         private void chunk(byte[] b, int off, int len) throws java.io.IOException {
             try {
                 byte[] lenBuf = {(byte) ((len >> 8) & 0xFF), (byte) (len & 0xFF)};
-                cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(16, nonce));
+                cipher.init(Cipher.ENCRYPT_MODE, key, spec(nonce));
                 byte[] le = cipher.doFinal(lenBuf);
                 increment(nonce);
-                cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(16, nonce));
+                cipher.init(Cipher.ENCRYPT_MODE, key, spec(nonce));
                 byte[] de = cipher.doFinal(b, off, len);
                 increment(nonce);
                 out.write(le); out.write(de);
@@ -184,19 +191,20 @@ public final class SsAead extends BaseClient {
             this.nonce = new byte[12];
             this.dec = Cipher.getInstance(chacha ? "ChaCha20-Poly1305" : "AES/GCM/NoPadding");
         }
+        private AlgorithmParameterSpec spec() { return chacha ? new IvParameterSpec(nonce) : new GCMParameterSpec(128, nonce); }
         private boolean nextChunk() {
             if (eof) return false;
             try {
                 byte[] et = new byte[18];
                 if (!readFull(et)) { eof = true; return false; }
-                dec.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(16, nonce));
+                dec.init(Cipher.DECRYPT_MODE, key, spec());
                 byte[] t = dec.doFinal(et);
                 increment(nonce);
                 int len = ((t[0] & 0xFF) << 8) | (t[1] & 0xFF);
                 if (len <= 0 || len > 0x3FFF) { eof = true; return false; }
                 byte[] ed = new byte[len + 16];
                 if (!readFull(ed)) { eof = true; return false; }
-                dec.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(16, nonce));
+                dec.init(Cipher.DECRYPT_MODE, key, spec());
                 pending = dec.doFinal(ed);
                 increment(nonce);
                 pos = 0;

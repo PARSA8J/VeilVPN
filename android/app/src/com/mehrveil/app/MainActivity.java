@@ -86,7 +86,10 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
 
         VpnController.get().setListener(st -> main.post(() -> pushStatus(st)));
-        new Thread(() -> VpnData.loadSeed(MainActivity.this)).start();
+        new Thread(() -> {
+            VpnData.loadSeed(MainActivity.this);
+            VpnData.startVerifyAsync(60);
+        }).start();
     }
 
     @Override
@@ -135,6 +138,7 @@ public class MainActivity extends Activity {
                     switch (action) {
                         case "fetchServers": {
                             final JSONArray arr = VpnData.fetchServers(MainActivity.this);
+                            VpnData.startVerifyAsync(80);
                             reply(cbId, new JSONObject().put("servers", arr));
                             break;
                         }
@@ -177,7 +181,10 @@ public class MainActivity extends Activity {
                             JSONObject o = new JSONObject();
                             o.put("status", VpnController.get().state());
                             o.put("platform", "android");
-                            o.put("version", "1.6.1");
+                            String ver;
+            try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+            catch (Throwable t) { ver = "1.6.4"; }
+            o.put("version", ver);
                             o.put("features", new JSONObject()
                                     .put("kill", VpnController.get().killSwitch)
                                     .put("auto", VpnController.get().autoConnect)
