@@ -11,7 +11,9 @@ RES="$ROOT/android/res"
 MAN="$ROOT/android/AndroidManifest.xml"
 ASSETS="$ROOT/android/app/assets"
 OUT="$ROOT/android/build"
-APK="${OUT_DIR:-$ROOT}/VeilVPN-1.5.1.apk"
+APK_DIR="${OUT_DIR:-$ROOT}"
+mkdir -p "$APK_DIR" && APK_DIR="$(cd "$APK_DIR" && pwd)"   # absolute: script cd's internally
+APK="$APK_DIR/VeilVPN-1.5.1.apk"
 VER_NAME=1.5.1
 VER_CODE=10
 
