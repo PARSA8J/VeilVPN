@@ -29,8 +29,8 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 | 🖥️ Windows | [Mehrveil-1.6.9.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.9.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.9/Mehrveil-1.6.9.exe) | Windows 10/11 64-bit |
 
 > ⚠️ **Old releases have been removed** — only **v1.6.9** is distributed. Download **only** files named `Mehrveil-1.6.9.apk` / `Mehrveil-1.6.9.exe`.
-> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `0af7af4e8849a214be78e48ebca760545770c7ce2a9fec026fe81a29179ce561`. A different size = corrupted download → re-download from the direct link.
-> 🪟 Windows EXE integrity — **1,655,808 bytes (~1.6 MB)** · SHA-256 `ccb4210ea912889b42a267304c2189bc16e295cb9224a5a761254ff99aabf768`.
+> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `25ce84491deb2310f29ee18e83f9168f2eb92539139f3f6c543ced677cddb510`. A different size = corrupted download → re-download from the direct link.
+> 🪟 Windows EXE integrity — **1,655,808 bytes (~1.6 MB)** · SHA-256 `484f44931719782ecdf8a9fea43984653e72f7757e580cec3598f024c447e827`.
 > 🧹 **Running an old file?** If the app window shows a version older than **v1.6.9** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.9 again.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
