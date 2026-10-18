@@ -25,18 +25,19 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.7.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.7.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.7/Mehrveil-1.6.7.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.7.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.7.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.7/Mehrveil-1.6.7.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.8.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.8.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases have been removed** — only **v1.6.7** is distributed. Download **only** files named `Mehrveil-1.6.7.apk` / `Mehrveil-1.6.7.exe`.
-> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `bebc69e4274a3aa0b30e5f8283a4b1d7769f04bce868ac0e4942926c7937af90`. A different size = corrupted download → re-download from the direct link.
-> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.7** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.7 again.
+> ⚠️ **Old releases have been removed** — only **v1.6.8** is distributed. Download **only** files named `Mehrveil-1.6.8.apk` / `Mehrveil-1.6.8.exe`.
+> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `0af7af4e8849a214be78e48ebca760545770c7ce2a9fec026fe81a29179ce561`. A different size = corrupted download → re-download from the direct link.
+> 🪟 Windows EXE integrity — **1,655,808 bytes (~1.6 MB)** · SHA-256 `ccb4210ea912889b42a267304c2189bc16e295cb9224a5a761254ff99aabf768`.
+> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.8** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.8 again.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
 ## ✨ Features
 
-- **🪟 Liquid Glass UI** — a real glassmorphism design language: layered translucent panels, specular highlights, soft shadows. On Windows the window even has genuine acrylic blur behind it. No browser, no WebView on Windows — a fully **native Rust (egui)** app.
+- **🪟 Liquid Glass UI** — a real glassmorphism design language: layered translucent panels, specular highlights, soft shadows. Windows renders it with the built-in **WebView2 (Chromium) engine** — DirectComposition, no GPU hacks — while the VPN core stays fully **native Rust** in the same EXE.
 - **📡 Always-ready servers** — a curated list of live public servers (30+ countries) is baked into the app, plus live refresh from multiple public aggregator sources with CDN mirrors. The app **measures real ping to every server** (TCP handshake time) and shows the **country flag + country name + latency** for each one. By default you see only the **24 fastest** — tap *Show all* for the complete list.
 - **📊 Real stats** — live download/upload speed from actual tunnel byte counters and true round-trip ping to your connected server. Nothing simulated.
 - **🔁 Automatic failover** — if a server dies mid-session, up to 5 candidates are retried without you noticing.
@@ -74,17 +75,27 @@ If the installer shows the app name + icon but still says **«App not installed�
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.7.exe` and run it — no installer, no browser, no dependencies.
+1. Download `Mehrveil-1.6.8.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
 
-## 🆕 What's new in v1.6.7
+## 🆕 What's new in v1.6.8
 
-- **Windows white screen: fixed at the graphics layer.** v1.6.6 removed the broken transparent window, but on some machines (Intel HD graphics, VMs, RDP sessions) the classic OpenGL renderer still presents a blank white window. v1.6.7 boots on a **modern DirectX 12 / Vulkan renderer (wgpu)** first — with an automatic **OpenGL fallback** for older PCs. The two-engine build means the UI draws even when one graphics path is broken on your machine.
-- **Paint-before-show boot sequence.** The window is created hidden, paints several frames through the GPU pipeline, then becomes visible — and a 1-pixel resize nudge un-sticks drivers that only present after a resize. No more white flash or permanently white page.
-- **Never dies silently again.** Every startup writes a timestamped log to `%APPDATA%\Mehrveil\log.txt`. Any internal error now opens a native Windows error dialog explaining what happened. Launching a second copy shows an "already running" notice instead of nothing.
-- **Built-in diagnostics:** run `Mehrveil.exe --diag` to display the startup log (renderer attempts, GPU adapter, failures) in a dialog — if the window ever misbehaves on your machine, this tells us exactly why.
-- **Android:** no protocol/core changes in this release (same hardened VPN core as v1.6.6) — only the version number moved. You do **not** need to reinstall the APK if v1.6.6 already works for you.
-- Windows executable is now **11.4 MB** (it carries two graphics engines instead of one).
+- **Windows white screen: killed for good — the UI engine is replaced.** Three fix rounds on the old GPU-rendered interface (transparent window removal, DirectX 12/Vulkan + OpenGL double renderer, paint-before-show boot) proved that the *whole* rendering stack was the problem on affected machines. So v1.6.8 drops it entirely: the desktop app now renders its interface with **WebView2 — the same Chromium engine that already works in your Edge browser and in the Android app**. It draws through DirectComposition, not through the OpenGL/Vulkan paths that white-screened. If your PC can show a web page, it can show Mehrveil.
+- **Same Liquid Glass design, same 16 languages.** The interface is the exact same glass UI as before — flags, real pings, timer, live speeds — now drawn by Chromium instead of egui.
+- **Still a real Rust core.** The proxy engine, VLESS/Trojan/SS protocol clients, subscription fetching, failover, and the system-proxy switch are the same native Rust code — no third-party VPN app, no scripts.
+- **New real stats + verified exit IP.** While connected, the app measures **true up/down byte counters** from inside the tunnel and performs a **real IP check through the tunnel** (Cloudflare trace over TLS) — the connected node gets an honest *verified* mark.
+- **Fail-fast diagnostics stay:** `%APPDATA%\Mehrveil\log.txt` startup log, `Mehrveil.exe --diag`, native error dialogs, single-instance guard.
+- **One honest requirement:** Windows 10/11 with the WebView2 Runtime (pre-installed on Windows 11 and on virtually all updated Windows 10 systems). If it is missing, the app tells you exactly what to install instead of showing a broken window. The EXE is now also ~4× smaller because the UI engine ships with Windows.
+
+
+### 🆕 v1.6.8 چه چیزی عوض شد؟
+
+- **صفحهٔ سفید ویندوز برای همیشه مرده — موتور رابط کاربری عوض شد.** سه راند فیکس روی رندر قبلی (حذف پنجرهٔ شفاف، رندر دوگانهٔ DirectX 12/Vulkan + OpenGL، بوت paint-before-show) ثابت کرد که *کل* استک رندر مقصر است. پس v1.6.8 کلاً کنارش گذاشت: رابط دسکتاپ حالا با **WebView2 رندر می‌شود — همان موتور Chromium که در مرورگر Edge و اپ اندروید از قبل درست کار می‌کند**. اگر PC شما می‌تواند یک صفحهٔ وب را نشان دهد، می‌تواند Mehrveil را هم نشان دهد.
+- **همان طراحی Liquid Glass، همان ۱۶ زبان** — پرچم‌ها، پینگ واقعی، تایمر و سرعت زنده، این بار با Chromium به‌جای egui.
+- **هستهٔ واقعی Rust سر جایش است** — موتور پروکسی، کلاینت‌های VLESS/Trojan/SS، دریافت سابسکریپشن، فیلور و سوییچ پروکسی سیستم، همان کد نیتیو قبلی است.
+- **آمار واقعی جدید + تأیید IP خروجی.** هنگام اتصال، شمارندهٔ واقعی بایت‌های بالا/پایین داخل تونل اندازه‌گیری می‌شود و IP خروجی واقعی از داخل تونل چک می‌شود (Cloudflare trace روی TLS) — سرور متصل نشان «تأیید شده» می‌گیرد.
+- **عیب‌یابی سریع سر جایش است:** لاگ `%APPDATA%\Mehrveil\log.txt`، دستور `Mehrveil.exe --diag`، پیام خطای بومی و جلوگیری از اجرای دوباره.
+- **تنها پیش‌نیاز:** ویندوز ۱۰/۱۱ با WebView2 Runtime (روی ویندوز ۱۱ و اکثر ویندوزهای ۱۰ به‌روزشده از قبل هست). اگر نبود، برنامه دقیقاً می‌گوید چه چیزی را نصب کنید — نه اینکه پنجرهٔ خراب نشان دهد. حجم EXE هم ~۴ برابر کوچک‌تر شد.
 
 ## 🔒 Security
 
@@ -102,14 +113,13 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.7.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.8.apk
 ```
 
-### Windows (native Rust)
+### Windows (Rust core + WebView2 shell — MSVC)
 ```bash
-rustup target add x86_64-pc-windows-gnu
-cd windows-rs && cargo test   # end-to-end protocol tests against simulated servers
-cd .. && bash scripts/build_exe.sh   # -> Mehrveil-1.6.7.exe
+cd windows-rs && cargo test        # e2e protocol tests + UI-bridge contract test
+cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.8.exe  (needs the MSVC toolchain — as on windows-latest CI)
 ```
 
 ### Server seed list
@@ -122,7 +132,7 @@ python3 scripts/build_verified_seed.py   # fetch -> parse -> TCP test -> full pr
 ```
 shared/       Liquid Glass web UI (Android) + i18n for 16 languages
 android/      Android app: VpnService + user-space TCP/IP stack + VLESS/Trojan/SS clients
-windows-rs/   Native Windows app (Rust + egui, acrylic glass theme) + e2e tests
+windows-rs/   Windows app: Rust core (engine/protocols/proxy) + WebView2 UI shell + tests
 scripts/      Build scripts (APK / EXE / seeds / icon)
 .github/      CI: builds both binaries on every push, releases on every v* tag
 ```
@@ -141,8 +151,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.7.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.7.exe`) — اپ کاملاً **نیتیو Rust** (بدون مرورگر!) با تم شیشه‌ای نقاشی‌شده + هستهٔ پروکسی داخل خود exe + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.8.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.8.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -154,12 +164,12 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.7.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.7.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.7/Mehrveil-1.6.7.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.7.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.7.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.7/Mehrveil-1.6.7.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.8.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.8.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.7** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.7.apk` / `Mehrveil-1.6.7.exe` را دانلود کن.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.8** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.8.apk` / `Mehrveil-1.6.8.exe` را دانلود کن.
 > ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۱۹٬۸۹۰ بایت (~۱۱۷ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
-> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.7** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.7 را دوباره دانلود کن.
+> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.8** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.8 را دوباره دانلود کن.
 
 ### ❓ «App not installed» — عیب‌یابی
 
