@@ -46,6 +46,12 @@ pub struct Shared {
     pub up: AtomicU64,   // bytes sent through the tunnel this session
     pub down: AtomicU64, // bytes received through the tunnel this session
     pub servers_gen: AtomicU64, // bumped whenever the server list is replaced
+    // v1.6.11: honest ping progress for the UI (pingBatch reads these)
+    pub ping_done: AtomicBool,     // full TCP-ping pass finished for the current list
+    pub ping_measured: AtomicU64,  // results final so far (ok or fail)
+    pub ping_total: AtomicU64,     // servers in the pass
+    // v1.6.11: bumped on Disconnect/new Connect to cancel in-flight connect attempts
+    pub connect_gen: AtomicU64,
 }
 
 impl Shared {
@@ -61,6 +67,10 @@ impl Shared {
             up: AtomicU64::new(0),
             down: AtomicU64::new(0),
             servers_gen: AtomicU64::new(0),
+            ping_done: AtomicBool::new(false),
+            ping_measured: AtomicU64::new(0),
+            ping_total: AtomicU64::new(0),
+            connect_gen: AtomicU64::new(0),
         })
     }
     pub fn repaint(&self) {
@@ -182,9 +192,18 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
         }
         match cmd {
             Cmd::Connect { server } => {
-                connect_with_failover(&shared, &uplink, server).await;
+                // v1.6.11: run OFF the command loop — probing up to 24 candidates
+                // must never freeze Disconnect/Connect handling. connect_gen marks
+                // this attempt; a later Disconnect/Connect invalidates it.
+                let my_gen = shared.connect_gen.fetch_add(1, Ordering::SeqCst) + 1;
+                let shared2 = shared.clone();
+                let uplink2 = uplink.clone();
+                tokio::spawn(async move {
+                    connect_with_failover(&shared2, &uplink2, server, my_gen).await;
+                });
             }
             Cmd::Disconnect => {
+                shared.connect_gen.fetch_add(1, Ordering::SeqCst); // cancel in-flight attempt
                 *uplink.lock().unwrap() = None;
                 let mut st = shared.status();
                 st.phase = Phase::Idle;
@@ -216,24 +235,39 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
 
 fn build_candidates(servers: &[Server], pings: &[u32], selected: &Server, n: usize) -> Vec<Server> {
     let mut out = vec![selected.clone()];
-    let mut idx: Vec<usize> = (0..servers.len()).collect();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    seen.insert(format!("{}|{}|{}", selected.proto, selected.host, selected.port));
+    // measured-ok fastest first, then unmeasured/failed endpoints (a failed TCP
+    // ping does not always mean a dead node — DNS or DPI can interfere), then
+    // dedupe by endpoint so one working host is not probed five times.
+    let mut idx: Vec<usize> = (0..servers.len())
+        .filter(|&i| servers[i].proto != "vmess")
+        .collect();
     idx.sort_by_key(|&i| pings.get(i).copied().unwrap_or(u32::MAX));
     for i in idx {
         if out.len() >= n {
             break;
         }
         let s = &servers[i];
-        if s.key() != selected.key() && s.proto != "vmess" {
+        let k = format!("{}|{}|{}", s.proto, s.host, s.port);
+        if seen.insert(k) {
             out.push(s.clone());
         }
     }
     out
 }
 
-async fn connect_with_failover(shared: &Arc<Shared>, uplink: &Arc<Mutex<Option<Arc<Server>>>>, selected: Server) {
+async fn connect_with_failover(
+    shared: &Arc<Shared>,
+    uplink: &Arc<Mutex<Option<Arc<Server>>>>,
+    selected: Server,
+    gen: u64,
+) {
     let servers = shared.servers.lock().unwrap().clone();
     let pings = shared.pings.lock().unwrap().clone();
-    let candidates = build_candidates(&servers, &pings, &selected, 6);
+    // v1.6.11: 24 candidates (was 6) — public lists are mostly dead nodes, so
+    // breadth matters. Selected server always gets the first attempt.
+    let candidates = build_candidates(&servers, &pings, &selected, 24);
 
     let mut st = shared.status();
     st.phase = Phase::Connecting;
@@ -245,49 +279,91 @@ async fn connect_with_failover(shared: &Arc<Shared>, uplink: &Arc<Mutex<Option<A
     // api.ipify.org rate-limits (429) and many proxy exits 400 it; generate_204 is stable
     // and reachable from Iran.
     let probe = Addr::new("cp.cloudflare.com".into(), 80);
-    for cand in &candidates {
-        match try_probe(cand, &probe).await {
-            Ok(ip) => {
-                *uplink.lock().unwrap() = Some(Arc::new(cand.clone()));
-                // "ok|<ms>" from try_probe — store the measured latency, no fake IP
-                let ms = ip.split('|').nth(1).and_then(|v| v.parse::<u32>().ok());
-                shared.up.store(0, Ordering::SeqCst);
-                shared.down.store(0, Ordering::SeqCst);
-                let mut st = shared.status();
-                st.phase = Phase::Connected;
-                st.active = Some(cand.clone());
-                st.since = Some(std::time::SystemTime::now());
-                st.ip = None;
-                st.ip_cc = None;
-                st.latency_ms = ms;
-                shared.set_status(st);
-                crate::sysproxy::enable(shared.proxy_port.load(Ordering::SeqCst));
-                // real IP check through the tunnel (best effort, never blocks)
-                {
-                    let shared = shared.clone();
-                    let up = uplink.clone();
-                    tokio::spawn(async move {
-                        let srv_opt = up.lock().unwrap().clone();
-                        if let Some(srv) = srv_opt {
-                            ip_check_through_tunnel(&shared, &srv).await;
+    let mut tried = 0usize;
+    let mut last_err = String::from("no candidates");
+    // v1.6.11: probe in parallel waves of 6 — first success wins. Serial probing
+    // of dead nodes wasted up to a minute; waves cut that to seconds.
+    for wave in candidates.chunks(6) {
+        if gen != shared.connect_gen.load(Ordering::SeqCst) {
+            return; // cancelled by Disconnect or a newer Connect
+        }
+        let mut futs = Vec::new();
+        for cand in wave {
+            let c = cand.clone();
+            let p = probe.clone();
+            futs.push(tokio::spawn(async move {
+                let r = try_probe(&c, &p).await;
+                (c, r)
+            }));
+        }
+        let mut won: Option<(Server, String)> = None;
+        for f in futs {
+            if let Ok((cand, r)) = f.await {
+                match r {
+                    Ok(ms) => {
+                        if won.is_none() {
+                            won = Some((cand, ms));
                         }
-                    });
+                    }
+                    Err(e) => last_err = format!("{}: {}", cand.host, e),
                 }
-                return;
-            }
-            Err(e) => {
-                let mut st = shared.status();
-                st.last_error = Some(format!("{}: {}", cand.host, e));
-                shared.set_status(st);
             }
         }
+        tried += wave.len();
+        if let Some((cand, ip)) = won {
+            if gen != shared.connect_gen.load(Ordering::SeqCst) {
+                return; // cancelled while probing
+            }
+            *uplink.lock().unwrap() = Some(Arc::new(cand.clone()));
+            // "ok|<ms>" from try_probe — store the measured latency, no fake IP
+            let ms = ip.split('|').nth(1).and_then(|v| v.parse::<u32>().ok());
+            shared.up.store(0, Ordering::SeqCst);
+            shared.down.store(0, Ordering::SeqCst);
+            let mut st = shared.status();
+            st.phase = Phase::Connected;
+            st.active = Some(cand.clone());
+            st.since = Some(std::time::SystemTime::now());
+            st.ip = None;
+            st.ip_cc = None;
+            st.latency_ms = ms;
+            st.last_error = None;
+            shared.set_status(st);
+            crate::sysproxy::enable(shared.proxy_port.load(Ordering::SeqCst));
+            // real IP check through the tunnel (best effort, never blocks)
+            {
+                let shared = shared.clone();
+                let up = uplink.clone();
+                tokio::spawn(async move {
+                    let srv_opt = up.lock().unwrap().clone();
+                    if let Some(srv) = srv_opt {
+                        ip_check_through_tunnel(&shared, &srv).await;
+                    }
+                });
+            }
+            return;
+        }
+        let mut st = shared.status();
+        st.last_error = Some(last_err.clone());
+        shared.set_status(st);
     }
     let mut st = shared.status();
-    st.phase = Phase::Error("all candidates failed".into());
+    st.phase = Phase::Error(format!(
+        "{} of {} candidates failed — last: {}",
+        tried, candidates.len(), last_err
+    ));
     shared.set_status(st);
 }
 
+/// v1.6.11: hard 6s outer bound per candidate (dial 8s inside proto::dial would
+/// let one dead node stall a whole wave). Every probe attempt is bounded.
 async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
+    match tokio::time::timeout(Duration::from_secs(6), try_probe_inner(srv, dst)).await {
+        Ok(r) => r,
+        Err(_) => Err(io::Error::new(io::ErrorKind::TimedOut, "probe timeout")),
+    }
+}
+
+async fn try_probe_inner(srv: &Server, dst: &Addr) -> io::Result<String> {
     let t0 = std::time::Instant::now();
     let mut s = proto::dial(srv, dst).await?;
     let req = format!(
@@ -297,7 +373,9 @@ async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
     s.write_all(req.as_bytes()).await?;
     let mut buf = Vec::new();
     let mut tmp = [0u8; 2048];
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(7000);
+    // v1.6.11: 6s outer bound covers the dial too (see try_probe callers);
+    // keep the read deadline below it so the error names the real cause.
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(5000);
     loop {
         let left = deadline.saturating_duration_since(tokio::time::Instant::now());
         if left.is_zero() {
@@ -586,10 +664,24 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
             Err(_) => continue,
         }
     }
-    let mut servers: Vec<Server> = uri::parse_lines(&text_all)
-        .into_iter()
-        .filter(|s| s.proto == "vless" || s.proto == "trojan" || (s.proto == "ss" && proto::method_supported(&s.method)))
+    let parsed: Vec<Server> = uri::parse_lines(&text_all);
+    let mut servers: Vec<Server> = parsed
+        .iter()
+        .filter(|s| {
+            (s.proto == "vless"
+                || s.proto == "trojan"
+                || (s.proto == "ss" && proto::method_supported(&s.method)))
+                && transport_supported(s)
+        })
+        .cloned()
         .collect();
+    let dropped = parsed.len() - servers.len();
+    if dropped > 0 {
+        crate::sysproxy::log_line(&format!(
+            "fetch: dropped {} configs with unsupported transports (reality/grpc/kcp/...)",
+            dropped
+        ));
+    }
     servers = uri::dedupe(servers);
     // cap list size for UI
     servers.truncate(400);
@@ -602,6 +694,24 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
     let _ = n;
     // kick a ping round
     ping_all(shared).await;
+}
+
+/// v1.6.11: honest list — keep only transports this build can actually dial.
+/// REALITY/gRPC/KCP/QUIC/H2 configs TCP-ping fine but can never connect; they
+/// used to rank as "fast" candidates and guarantee connect failures.
+fn transport_supported(s: &Server) -> bool {
+    match s.proto.as_str() {
+        "vless" => {
+            matches!(s.security.as_str(), "none" | "tls")
+                && matches!(s.net.as_str(), "tcp" | "ws")
+        }
+        "trojan" => {
+            matches!(s.security.as_str(), "tls" | "none")
+                && matches!(s.net.as_str(), "tcp" | "ws")
+        }
+        "ss" => true,
+        _ => false,
+    }
 }
 
 async fn fetch_url(url: &str) -> io::Result<String> {
@@ -617,33 +727,56 @@ async fn ping_all(shared: &Arc<Shared>) {
         return;
     }
     let servers = shared.servers.lock().unwrap().clone();
-    let mut results = vec![u32::MAX; servers.len()];
+    let gen_at_start = shared.servers_gen.load(Ordering::SeqCst);
+    shared.ping_done.store(false, Ordering::SeqCst);
+    shared.ping_total.store(servers.len() as u64, Ordering::SeqCst);
+    shared.ping_measured.store(0, Ordering::SeqCst);
+    {
+        let mut p = shared.pings.lock().unwrap();
+        p.clear();
+        p.resize(servers.len(), u32::MAX);
+    }
 
-    // concurrent batches of 24
-    for chunk in servers.chunks(24) {
+    // v1.6.11: results merge INCREMENTALLY (per chunk) so the UI sees pings
+    // trickle in while the pass is running — before, every result landed only
+    // after the whole multi-pass loop, and the UI marked everything dead.
+    // 3s timeout (was 1.5s) for high-latency / DPI-throttled networks.
+    const CHUNK: usize = 32;
+    const TIMEOUT_MS: u64 = 3000;
+    for chunk in servers.chunks(CHUNK) {
+        if shared.servers_gen.load(Ordering::SeqCst) != gen_at_start {
+            break; // list was replaced; the new fetch starts a fresh pass
+        }
+        let base = chunk_start(&servers, chunk);
         let mut futs = Vec::new();
-        for (i, s) in chunk.iter().enumerate() {
+        for s in chunk {
             let host = s.host.clone();
             let port = s.port;
             futs.push(tokio::spawn(async move {
                 let t0 = std::time::Instant::now();
-                match proto::tcp_connect(&host, port, 1500).await {
+                match proto::tcp_connect(&host, port, TIMEOUT_MS).await {
                     Ok(_) => Some(t0.elapsed().as_millis() as u32),
                     Err(_) => None,
                 }
             }));
-            let _ = i;
         }
         for (j, f) in futs.into_iter().enumerate() {
-            let base = chunk_start(&servers, chunk);
-            if let Ok(Some(ms)) = f.await {
-                if base + j < results.len() {
-                    results[base + j] = ms;
-                }
+            let idx = base + j;
+            if idx >= servers.len() {
+                continue;
+            }
+            let ms: Option<u32> = f.await.ok().flatten();
+            let mut p = shared.pings.lock().unwrap();
+            if idx < p.len() {
+                p[idx] = ms.unwrap_or(u32::MAX);
             }
         }
+        shared.ping_measured.fetch_add(chunk.len() as u64, Ordering::SeqCst);
+        shared.repaint();
     }
-    *shared.pings.lock().unwrap() = results;
+    if shared.servers_gen.load(Ordering::SeqCst) == gen_at_start {
+        shared.ping_done.store(true, Ordering::SeqCst);
+    }
     shared.pinging.store(false, Ordering::SeqCst);
     shared.repaint();
 }

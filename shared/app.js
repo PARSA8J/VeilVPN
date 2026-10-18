@@ -96,7 +96,8 @@ function ccFlag(cc){
 var state = {
   status:'disconnected', servers:[], selected:null, seconds:0, timers:[],
   features:{kill:true,auto:true,adblock:false}, lang:null,
-  ipInfo:null, bootReady:false, lastError:null, showAll:false, pingLoop:false
+  ipInfo:null, bootReady:false, lastError:null, showAll:false, pingLoop:false,
+  pingProg:null
 };
 
 var app=document.getElementById('app'),
@@ -191,10 +192,13 @@ function renderServers(){
     frag.appendChild(b);
   });
   serverList.appendChild(frag);
-  serverHint.textContent = state.showAll
-    ? state.servers.length+' '+window.t('locations')
-    : (untested.length ? view.length+' '+window.t('locations')+' · '+window.t('testing')
-                       : view.length+' '+window.t('locations'));
+  var count = state.showAll ? state.servers.length : view.length;
+  var prog = '';
+  if (state.pingProg && state.pingProg.t && !state.pingProg.done)
+    prog = ' · '+window.t('testing')+' '+state.pingProg.m+'/'+state.pingProg.t;
+  else if (untested.length && !state.pingProg)
+    prog = ' · '+window.t('testing');
+  serverHint.textContent = count+' '+window.t('locations')+prog;
   updateShowAllBtn();
 }
 function updateShowAllBtn(){
@@ -220,27 +224,33 @@ function sortServers(){
   });
 }
 /* REAL ping: keep testing every unmeasured node in small batches until done.
-   Nodes that fail twice are marked dead (shown as '—', never faked). */
+   v1.6.11: the engine measures asynchronously and reports done/measured/total;
+   the UI never marks a node dead while the pass is still running (before, two
+   empty polls in <1s declared everything dead and pings never appeared).
+   Android's bridge is synchronous (no done field) → legacy 2-try rule. */
 function pingMore(){
   var need=state.servers.filter(function(s){return s.ping==null&&!s.dead&&!s.probing;})
                        .slice(0,40);
-  if(!need.length){ state.pingLoop=false; return; }
+  if(!need.length){ state.pingLoop=false; state.pingProg=null; return; }
   state.pingLoop=true;
   need.forEach(function(s){ s.probing=true; });
   BRIDGE.call('pingBatch',{ids:need.map(function(s){return s.id;})}).then(function(r){
+    var legacy = !(r && typeof r.done!=='undefined');
+    var done = !legacy && !!r.done;
     state.servers.forEach(function(s){
-      if(s.probing){ s.probing=false;
-        if(r&&r.pings&&r.pings[s.id]!=null) s.ping=r.pings[s.id];
-        else s.tries=(s.tries||0)+1;
-        if(s.ping==null&&(s.tries||0)>=2) s.dead=true;
-      }
+      if(!s.probing) return;
+      s.probing=false;
+      if(r&&r.pings&&r.pings[s.id]!=null){ s.ping=r.pings[s.id]; s.tries=0; }
+      else if(legacy){ s.tries=(s.tries||0)+1; if((s.tries||0)>=2) s.dead=true; }
+      else if(done){ s.dead=true; }
     });
+    state.pingProg = (!legacy && r && r.total) ? {m:r.measured||0,t:r.total,done:done} : null;
     sortServers();
     if(state.selected) state.selected=state.servers.find(function(x){return x.id===state.selected.id;})||state.selected;
     renderServers();
     if(state.servers.some(function(s){return s.ping==null&&!s.dead;}))
-      setTimeout(pingMore,250);
-    else state.pingLoop=false;
+      setTimeout(pingMore, legacy?250:(done?800:400));
+    else { state.pingLoop=false; state.pingProg=null; }
   }).catch(function(){ state.pingLoop=false; });
 }
 function onServers(list){
@@ -312,6 +322,12 @@ function connect(){
   connectSub.textContent=window.t('securing')+' · '+ccFlag(state.selected.cc)+' '+ccName(state.selected.cc);
   statusText.textContent=window.t('connecting');
   setValue('ping','···',''); setValue('down','···',''); setValue('up','···','');
+  /* v1.6.11: watchdog — if no engine status event lands within 75s, reset the
+     UI honestly instead of spinning forever. */
+  clearTimeout(state._cw);
+  state._cw=setTimeout(function(){
+    if(state.status==='connecting'){ doDisconnect(false); toast(window.t('conn_fail'), true); }
+  }, 75000);
   BRIDGE.call('connect',{id:state.selected.id}).then(function(r){
     if(r && r.ok && r.async) return;
     if(r && r.ok && r.handoff){ toast(window.t('connecting')); return; }
@@ -322,6 +338,7 @@ function connect(){
   });
 }
 function doDisconnect(instant){
+  clearTimeout(state._cw);
   if(state.status==='disconnected' && instant) return;
   clearTimers(); state.seconds=0;
   var finish=function(){ state.status='disconnected'; applyStatusClass(); updateIdleUI(); };
@@ -334,6 +351,7 @@ function doDisconnect(instant){
   setTimeout(finish, 500);
 }
 function onStatus(st){
+  clearTimeout(state._cw); /* engine answered — disarm the connect watchdog */
   var prev=state.status;
   state.status=st.state;
   state.lastError=st.error||null;
@@ -425,13 +443,13 @@ function winEvents(){
 connectBtn.addEventListener('click', function(){
   if(state.status==='disconnected') connect();
   else if(state.status==='connected') doDisconnect(false);
-  else if(state.status==='connecting') toast(window.t('connecting')+'…');
+  else if(state.status==='connecting') doDisconnect(false); /* v1.6.11: tap again = cancel the attempt */
 });
 
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.10 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.11 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();

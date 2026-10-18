@@ -136,7 +136,7 @@ fn webapi_contract() {
     let g: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(g["platform"], "windows");
     assert_eq!(g["status"], "disconnected");
-    assert_eq!(g["version"], "1.6.10");
+    assert_eq!(g["version"], "1.6.11");
     assert!(g["features"]["auto"].is_boolean());
 
     // --- servers arrive via the events queue (gen bump + repaint) ---
@@ -154,7 +154,11 @@ fn webapi_contract() {
     }
 
     // --- pingBatch with real pings ---
-    *shared.pings.lock().unwrap() = vec![24, 31, u32::MAX, 88];
+    // (seed has 120 nodes; measure s0..s3 explicitly, mark the rest OK so the
+    //  dead-flag assertions below only see s2)
+    let mut pv = vec![24u32, 31, u32::MAX, 88];
+    pv.resize(n, 7);
+    *shared.pings.lock().unwrap() = pv;
     let (st, body) = post(
         port,
         &format!("/api/pingBatch?k={}", k),
@@ -165,6 +169,29 @@ fn webapi_contract() {
     assert_eq!(r["pings"]["s0"], 24);
     assert_eq!(r["pings"]["s1"], 31);
     assert!(r["pings"]["s2"].is_null(), "failed ping must be omitted");
+
+    // --- v1.6.11: pass progress + honest dead flags ---
+    assert!(r["done"].is_boolean(), "pingBatch must report pass completion");
+    assert!(r["measured"].is_u64() && r["total"].is_u64());
+    shared.ping_total.store(n as u64, Ordering::SeqCst);
+    let (_, body) = post(port, &format!("/api/snapshot?k={}", k), "{}");
+    let snap: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let list = snap["servers"].as_array().expect("snapshot servers");
+    assert!(
+        list.iter().all(|s| s["dead"].is_null()),
+        "no dead flags while the pass is still running"
+    );
+    shared.ping_done.store(true, Ordering::SeqCst);
+    let (_, body) = post(port, &format!("/api/snapshot?k={}", k), "{}");
+    let snap: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let list = snap["servers"].as_array().expect("snapshot servers");
+    let s2 = list.iter().find(|s| s["id"] == "s2").expect("s2 present");
+    assert_eq!(s2["dead"], true, "unmeasured after the pass done = dead");
+    assert!(
+        list.iter().filter(|s| s["id"] != "s2").all(|s| s["dead"].is_null()),
+        "measured nodes are never flagged dead"
+    );
+    shared.ping_done.store(false, Ordering::SeqCst);
 
     // --- connect → async ack, then status event ---
     let (st, body) = post(port, &format!("/api/connect?k={}", k), r#"{"id":"s0"}"#);

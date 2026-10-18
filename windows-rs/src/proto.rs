@@ -136,7 +136,6 @@ async fn write_vless_header(s: &mut dyn AsyncReadWrite, uid: &[u8; 16], dst: &Ad
     req.push(atyp);
     req.extend_from_slice(&addr);
     req.extend_from_slice(&dst.port.to_be_bytes());
-    eprintln!("P-DBG: header write {} bytes", req.len());
     s.write_all(&req).await?;
     let mut resp = [0u8; 2];
     s.read_exact(&mut resp).await?;

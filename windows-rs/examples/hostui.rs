@@ -46,6 +46,20 @@ fn main() {
     api.push_status_event();
     api.push_servers_event();
 
+    // v1.6.11: the real app pumps notify_repaint() from the Win32 message loop
+    // (WM_APP_REPAINT). There is no window here, so pump from a thread —
+    // otherwise status events never reach the browser during connect.
+    {
+        let api_p = api.clone();
+        std::thread::Builder::new()
+            .name("hostui-repaint".into())
+            .spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                api_p.notify_repaint();
+            })
+            .ok();
+    }
+
     let url = format!("http://127.0.0.1:{}/?k={}", api.port(), api.token());
     println!("URL={}", url);
     println!("HOSTUI_READY");

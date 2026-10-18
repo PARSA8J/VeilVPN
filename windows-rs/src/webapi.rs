@@ -231,6 +231,10 @@ impl WebApi {
                 if active_key.as_deref() == Some(s.key().as_str()) {
                     o["ok"] = serde_json::json!(true); // probe-verified live server
                 }
+                // v1.6.11: honest dead flag — only after the full pass finished
+                if ping == u32::MAX && self.shared.ping_done.load(Ordering::SeqCst) {
+                    o["dead"] = serde_json::json!(true);
+                }
                 o
             })
             .collect();
@@ -292,7 +296,16 @@ impl WebApi {
                 }
             }
         }
-        serde_json::json!({ "pings": map })
+        // v1.6.11: honest progress — the UI polls while the pass is running and
+        // only marks unmeasured nodes dead when `done` is true. (Before, the UI
+        // declared every node dead after 2 empty polls while the engine was
+        // still measuring — pings never appeared.)
+        serde_json::json!({
+            "pings": map,
+            "done": self.shared.ping_done.load(Ordering::SeqCst),
+            "measured": self.shared.ping_measured.load(Ordering::SeqCst),
+            "total": self.shared.ping_total.load(Ordering::SeqCst),
+        })
     }
 
     fn action_stats(&self) -> serde_json::Value {
