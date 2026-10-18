@@ -106,12 +106,10 @@ fn webapi_contract() {
 
     let cfg = Arc::new(Mutex::new(store::Config::default()));
     let api = webapi::WebApi::spawn(shared.clone(), cfg, tx);
-    let mut waited = 0;
-    while api.port() == 0 {
-        assert!(waited < 40, "webapi never bound");
-        std::thread::sleep(Duration::from_millis(50));
-        waited += 1;
-    }
+    // REGRESSION (v1.6.9): the port must be bound synchronously before spawn()
+    // returns. v1.6.8 read port 0 here and navigated WebView2 to
+    // http://127.0.0.1:0 → Chromium ERR_UNSAFE_PORT. No waiting allowed.
+    assert_ne!(api.port(), 0, "port must be real immediately after spawn()");
     let port = api.port();
     let k = api.token().to_string();
 
@@ -138,7 +136,7 @@ fn webapi_contract() {
     let g: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(g["platform"], "windows");
     assert_eq!(g["status"], "disconnected");
-    assert_eq!(g["version"], "1.6.8");
+    assert_eq!(g["version"], "1.6.9");
     assert!(g["features"]["auto"].is_boolean());
 
     // --- servers arrive via the events queue (gen bump + repaint) ---

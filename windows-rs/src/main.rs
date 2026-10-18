@@ -117,8 +117,30 @@ fn run_windows() -> Result<(), Box<dyn std::error::Error>> {
         move || api.notify_repaint()
     }));
 
-    // WebView2 UI
-    let base = format!("http://127.0.0.1:{}", api.port());
+    // WebView2 UI — port is bound synchronously in spawn(), so it is real by
+    // now; the wait below is a belt-and-braces guard so we can NEVER navigate
+    // to a port-0 URL (Chromium refuses it: ERR_UNSAFE_PORT).
+    let mut port = api.port();
+    if port == 0 {
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            port = api.port();
+            if port != 0 {
+                break;
+            }
+        }
+    }
+    if port == 0 {
+        sysproxy::log_line("webapi: no listener after wait — aborting UI startup");
+        sysproxy::error_box(
+            "Mehrveil",
+            "Failed to start the local UI server.\n\nPlease reinstall Mehrveil and try again.\n\nA diagnostic log was saved to:\n%APPDATA%\\Mehrveil\\log.txt",
+        );
+        sysproxy::disable();
+        engine.abandon();
+        return Ok(());
+    }
+    let base = format!("http://127.0.0.1:{}", port);
     let url = format!("{}/?k={}", base, api.token());
     if let Err(e) = unsafe { winui::create_webview(hwnd, &base, api.token(), &url) } {
         sysproxy::log_line(&format!("webview init failed: {}", e));

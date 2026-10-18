@@ -25,13 +25,13 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.8.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.8.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.9.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.9.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.9/Mehrveil-1.6.9.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.9.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.9.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.9/Mehrveil-1.6.9.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases have been removed** — only **v1.6.8** is distributed. Download **only** files named `Mehrveil-1.6.8.apk` / `Mehrveil-1.6.8.exe`.
+> ⚠️ **Old releases have been removed** — only **v1.6.9** is distributed. Download **only** files named `Mehrveil-1.6.9.apk` / `Mehrveil-1.6.9.exe`.
 > ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `0af7af4e8849a214be78e48ebca760545770c7ce2a9fec026fe81a29179ce561`. A different size = corrupted download → re-download from the direct link.
 > 🪟 Windows EXE integrity — **1,655,808 bytes (~1.6 MB)** · SHA-256 `ccb4210ea912889b42a267304c2189bc16e295cb9224a5a761254ff99aabf768`.
-> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.8** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.8 again.
+> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.9** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.9 again.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -75,8 +75,13 @@ If the installer shows the app name + icon but still says **«App not installed�
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.8.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
+1. Download `Mehrveil-1.6.9.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
+
+## 🆕 What's new in v1.6.9
+
+- **Fix for the "can't reach this page" startup error.** On many machines v1.6.8 opened with a browser-style error page (`http://127.0.0.1:0` — ERR_UNSAFE_PORT) instead of the app: the window was pointed at the internal UI server before that server had picked its port. v1.6.9 binds the port **before** the window is created and can never navigate to an invalid address — plus a safe native error dialog instead of any browser error page, ever.
+- **Everything else is exactly v1.6.8** — same WebView2 Liquid Glass UI, same Rust core, same features. If v1.6.8 showed you an error page instead of the app, install this one.
 
 ## 🆕 What's new in v1.6.8
 
@@ -87,6 +92,11 @@ If the installer shows the app name + icon but still says **«App not installed�
 - **Fail-fast diagnostics stay:** `%APPDATA%\Mehrveil\log.txt` startup log, `Mehrveil.exe --diag`, native error dialogs, single-instance guard.
 - **One honest requirement:** Windows 10/11 with the WebView2 Runtime (pre-installed on Windows 11 and on virtually all updated Windows 10 systems). If it is missing, the app tells you exactly what to install instead of showing a broken window. The EXE is now also ~4× smaller because the UI engine ships with Windows.
 
+
+### 🆕 v1.6.9 چه چیزی عوض شد؟
+
+- **رفع ارور «can't reach this page» هنگام باز شدن برنامه.** در v1.6.8 روی خیلی از سیستم‌ها به‌جای برنامه یک صفحهٔ خطای مرورگر باز می‌شد (`http://127.0.0.1:0` — ERR_UNSAFE_PORT): پنجره قبل از آماده‌شدن پورتِ سرور داخلی به آن آدرس می‌رفت. در v1.6.9 پورت قبل از ساخته‌شدن پنجره قطعی می‌شود و برنامه هیچ‌وقت به آدرس نامعتبر نمی‌رود — و در بدترین حالت هم به‌جای صفحهٔ خطای مرورگر، یک پیام بومی واضح نشان داده می‌شود.
+- **بقیهٔ چیزها دقیقاً مثل v1.6.8 است** — همان رابط Liquid Glass با WebView2، همان هستهٔ Rust. اگر v1.6.8 برای شما صفحهٔ خطا نشان می‌داد، همین نسخه را نصب کنید.
 
 ### 🆕 v1.6.8 چه چیزی عوض شد؟
 
@@ -113,13 +123,13 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.8.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.9.apk
 ```
 
 ### Windows (Rust core + WebView2 shell — MSVC)
 ```bash
 cd windows-rs && cargo test        # e2e protocol tests + UI-bridge contract test
-cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.8.exe  (needs the MSVC toolchain — as on windows-latest CI)
+cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.9.exe  (needs the MSVC toolchain — as on windows-latest CI)
 ```
 
 ### Server seed list
@@ -151,8 +161,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.8.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.8.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.9.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.9.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -164,12 +174,12 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.8.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.8.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.8.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.8/Mehrveil-1.6.8.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.9.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.9.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.9/Mehrveil-1.6.9.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.9.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.9.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.9/Mehrveil-1.6.9.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.8** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.8.apk` / `Mehrveil-1.6.8.exe` را دانلود کن.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.9** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.9.apk` / `Mehrveil-1.6.9.exe` را دانلود کن.
 > ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۱۹٬۸۹۰ بایت (~۱۱۷ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
-> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.8** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.8 را دوباره دانلود کن.
+> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.9** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.9 را دوباره دانلود کن.
 
 ### ❓ «App not installed» — عیب‌یابی
 

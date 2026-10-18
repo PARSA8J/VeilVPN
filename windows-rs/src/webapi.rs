@@ -70,14 +70,38 @@ impl WebApi {
             auto_done: AtomicBool::new(false),
             auto_enabled: AtomicBool::new(auto),
         });
+        // Bind synchronously on the caller thread: the real port MUST be known
+        // before spawn() returns. (v1.6.8 bug: the bind happened on the server
+        // thread and main() read port 0 before it ran → navigated WebView2 to
+        // http://127.0.0.1:0 → Chromium ERR_UNSAFE_PORT.) Connections made
+        // before the accept loop starts simply queue in the listen backlog.
+        let listener = match TcpListener::bind("127.0.0.1:0") {
+            Ok(l) => l,
+            Err(e) => {
+                crate::sysproxy::log_line(&format!("webapi: bind failed: {}", e));
+                crate::sysproxy::error_box(
+                    "Mehrveil",
+                    &format!("Failed to start the local UI server.\n{}", e),
+                );
+                return api; // port stays 0 — main() aborts cleanly
+            }
+        };
+        let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
+        api.port_cell.store(port, Ordering::SeqCst);
+        crate::sysproxy::log_line(&format!(
+            "webapi: listening on 127.0.0.1:{} (token ok)",
+            port
+        ));
+
         let api2 = api.clone();
         std::thread::Builder::new()
             .name("veil-webapi".into())
-            .spawn(move || server_loop(api2))
+            .spawn(move || server_loop(api2, listener))
             .expect("spawn webapi thread");
         api
     }
 
+    /// Real loopback port. 0 only if the bind failed (caller must abort).
     pub fn port(&self) -> u16 {
         self.port_cell.load(Ordering::SeqCst)
     }
@@ -343,19 +367,8 @@ impl WebApi {
 
 // ---------------- HTTP server ----------------
 
-fn server_loop(api: Arc<WebApi>) {
-    let listener = match TcpListener::bind("127.0.0.1:0") {
-        Ok(l) => l,
-        Err(e) => {
-            crate::sysproxy::log_line(&format!("webapi: bind failed: {}", e));
-            crate::sysproxy::error_box("Mehrveil", &format!("Failed to start the local UI server.\n{}", e));
-            return;
-        }
-    };
-    let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
-    api.port_cell.store(port, Ordering::SeqCst);
-    crate::sysproxy::log_line(&format!("webapi: listening on 127.0.0.1:{} (token ok)", port));
-
+fn server_loop(api: Arc<WebApi>, listener: TcpListener) {
+    // the listener is already bound (synchronously in spawn()); just accept.
     for conn in listener.incoming() {
         let Ok(stream) = conn else { continue };
         let api = api.clone();
