@@ -18,12 +18,27 @@ mod imp {
         fn MessageBoxW(hwnd: *mut core::ffi::c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
     }
 
+    // ---- only touch the registry when WE switched the proxy on ----
+    static WE_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
     pub fn error_box(title: &str, text: &str) {
         unsafe {
             let t: Vec<u16> = title.encode_utf16().chain([0]).collect();
             let b: Vec<u16> = text.encode_utf16().chain([0]).collect();
             MessageBoxW(std::ptr::null_mut(), b.as_ptr(), t.as_ptr(), 0x10); // MB_ICONERROR
         }
+    }
+
+    pub fn post_repaint(hwnd: isize) {
+        unsafe {
+            PostMessageW(hwnd as *mut core::ffi::c_void, WM_APP_REPAINT, 0, 0);
+        }
+    }
+
+    const WM_APP_REPAINT: u32 = 0x8001;
+    #[link(name = "user32")]
+    extern "system" {
+        fn PostMessageW(hwnd: *mut core::ffi::c_void, msg: u32, wparam: usize, lparam: isize) -> i32;
     }
 
     // ---- startup diagnostics log: %APPDATA%\Mehrveil\log.txt ----
@@ -188,9 +203,14 @@ mod imp {
             RegCloseKey(hk);
         }
         refresh();
+        WE_ENABLED.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub fn disable() {
+        // never touch the user's registry unless we are the ones who enabled it
+        if !WE_ENABLED.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
         let (hk, ok) = open_settings();
         if !ok {
             return;
@@ -228,6 +248,7 @@ mod imp {
     pub fn read_log_tail() -> String {
         String::new()
     }
+    pub fn post_repaint(_hwnd: isize) {}
 }
 
 pub fn enable(port: u16) {
@@ -244,4 +265,7 @@ pub fn log_line(msg: &str) {
 }
 pub fn read_log_tail() -> String {
     imp::read_log_tail()
+}
+pub fn post_repaint(hwnd: isize) {
+    imp::post_repaint(hwnd);
 }

@@ -4,7 +4,7 @@
 use crate::proto::{self, Addr};
 use crate::uri::{self, Server};
 use std::io;
-use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -25,12 +25,13 @@ pub struct Status {
     pub since: Option<std::time::SystemTime>,
     pub latency_ms: Option<u32>,
     pub ip: Option<String>,
+    pub ip_cc: Option<String>,
     pub last_error: Option<String>,
 }
 
 impl Default for Status {
     fn default() -> Self {
-        Self { phase: Phase::Idle, active: None, since: None, latency_ms: None, ip: None, last_error: None }
+        Self { phase: Phase::Idle, active: None, since: None, latency_ms: None, ip: None, ip_cc: None, last_error: None }
     }
 }
 
@@ -41,7 +42,10 @@ pub struct Shared {
     pub pinging: AtomicBool,
     pub fetching: AtomicBool,
     pub proxy_port: AtomicU16,
-    pub ctx: Mutex<Option<egui::Context>>,
+    pub hwnd: Mutex<Option<isize>>, // main window (Win32) for repaint pings
+    pub up: AtomicU64,   // bytes sent through the tunnel this session
+    pub down: AtomicU64, // bytes received through the tunnel this session
+    pub servers_gen: AtomicU64, // bumped whenever the server list is replaced
 }
 
 impl Shared {
@@ -53,12 +57,15 @@ impl Shared {
             pinging: AtomicBool::new(false),
             fetching: AtomicBool::new(false),
             proxy_port: AtomicU16::new(0),
-            ctx: Mutex::new(None),
+            hwnd: Mutex::new(None),
+            up: AtomicU64::new(0),
+            down: AtomicU64::new(0),
+            servers_gen: AtomicU64::new(0),
         })
     }
     pub fn repaint(&self) {
-        if let Some(c) = self.ctx.lock().unwrap().as_ref() {
-            c.request_repaint();
+        if let Some(h) = self.hwnd.lock().unwrap().as_ref() {
+            crate::sysproxy::post_repaint(*h);
         }
     }
     pub fn set_status(&self, s: Status) {
@@ -113,6 +120,13 @@ impl Engine {
             let _ = h.join();
         }
     }
+
+    /// Fire-and-forget stop for app exit: never blocks the UI thread on join.
+    pub fn abandon(&mut self) {
+        self.stop_flag.store(true, Ordering::SeqCst);
+        let _ = self.tx.send(Cmd::Disconnect);
+        self.handle.take();
+    }
 }
 
 impl Drop for Engine {
@@ -140,7 +154,7 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
 
     // listener task
     {
-        let shared = shared.clone();
+        let shared_l = shared.clone();
         let uplink = uplink.clone();
         let stop_l = stop.clone();
         tokio::spawn(async move {
@@ -148,9 +162,9 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
                 match listener.accept().await {
                     Ok((sock, _)) => {
                         let uplink = uplink.clone();
-                        let shared = shared.clone();
+                        let shared = shared_l.clone();
                         tokio::spawn(async move {
-                            let _ = handle_local(sock, uplink).await;
+                            let _ = handle_local(sock, uplink, shared).await;
                         });
                     }
                     Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
@@ -177,6 +191,7 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
                 st.active = None;
                 st.since = None;
                 st.ip = None;
+                st.ip_cc = None;
                 st.latency_ms = None;
                 shared.set_status(st);
                 crate::sysproxy::disable();
@@ -228,14 +243,28 @@ async fn connect_with_failover(shared: &Arc<Shared>, uplink: &Arc<Mutex<Option<A
                 *uplink.lock().unwrap() = Some(Arc::new(cand.clone()));
                 // "ok|<ms>" from try_probe — store the measured latency, no fake IP
                 let ms = ip.split('|').nth(1).and_then(|v| v.parse::<u32>().ok());
+                shared.up.store(0, Ordering::SeqCst);
+                shared.down.store(0, Ordering::SeqCst);
                 let mut st = shared.status();
                 st.phase = Phase::Connected;
                 st.active = Some(cand.clone());
                 st.since = Some(std::time::SystemTime::now());
                 st.ip = None;
+                st.ip_cc = None;
                 st.latency_ms = ms;
                 shared.set_status(st);
                 crate::sysproxy::enable(shared.proxy_port.load(Ordering::SeqCst));
+                // real IP check through the tunnel (best effort, never blocks)
+                {
+                    let shared = shared.clone();
+                    let up = uplink.clone();
+                    tokio::spawn(async move {
+                        let srv_opt = up.lock().unwrap().clone();
+                        if let Some(srv) = srv_opt {
+                            ip_check_through_tunnel(&shared, &srv).await;
+                        }
+                    });
+                }
                 return;
             }
             Err(e) => {
@@ -303,6 +332,7 @@ async fn try_probe(srv: &Server, dst: &Addr) -> io::Result<String> {
 async fn handle_local(
     mut sock: tokio::net::TcpStream,
     uplink: Arc<Mutex<Option<Arc<Server>>>>,
+    shared: Arc<Shared>,
 ) -> io::Result<()> {
     sock.set_nodelay(true).ok();
     let mut first = [0u8; 1];
@@ -311,9 +341,9 @@ async fn handle_local(
         return Ok(());
     }
     if first[0] == 0x05 {
-        socks5_flow(sock, first[0], uplink).await
+        socks5_flow(sock, first[0], uplink, shared).await
     } else {
-        http_connect_flow(sock, first[0], uplink).await
+        http_connect_flow(sock, first[0], uplink, shared).await
     }
 }
 
@@ -321,6 +351,7 @@ async fn socks5_flow(
     mut sock: tokio::net::TcpStream,
     ver: u8,
     uplink: Arc<Mutex<Option<Arc<Server>>>>,
+    shared: Arc<Shared>,
 ) -> io::Result<()> {
     // greeting: first byte (version) already consumed by caller
     let mut nmethods = [0u8; 1];
@@ -365,13 +396,14 @@ async fn socks5_flow(
     // success reply
     sock.write_all(&[ver, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]).await?;
 
-    relay(sock, host, port, uplink).await
+    relay(sock, host, port, uplink, shared).await
 }
 
 async fn http_connect_flow(
     mut sock: tokio::net::TcpStream,
     first: u8,
     uplink: Arc<Mutex<Option<Arc<Server>>>>,
+    shared: Arc<Shared>,
 ) -> io::Result<()> {
     // accumulate request head
     let mut head = vec![first];
@@ -405,24 +437,119 @@ async fn http_connect_flow(
         None => (target.clone(), 80),
     };
     sock.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").await?;
-    relay(sock, host, port, uplink).await
+    relay(sock, host, port, uplink, shared).await
 }
 
 async fn relay(
-    mut sock: tokio::net::TcpStream,
+    sock: tokio::net::TcpStream,
     host: String,
     port: u16,
     uplink: Arc<Mutex<Option<Arc<Server>>>>,
+    shared: Arc<Shared>,
 ) -> io::Result<()> {
     let srv = { uplink.lock().unwrap().clone() };
     let Some(srv) = srv else {
         return Err(io::Error::new(io::ErrorKind::NotConnected, "not connected"));
     };
     let dst = Addr::new(host, port);
-    let mut upstream = proto::dial(&srv, &dst).await?;
-    let _ = tokio::io::copy_bidirectional(&mut sock, &mut upstream).await;
-    let _ = sock.shutdown().await;
+    let upstream = proto::dial(&srv, &dst).await?;
+    relay_counted(sock, upstream, shared).await;
     Ok(())
+}
+
+/// Bidirectional relay with real byte accounting (per-direction totals).
+/// shared.up += local→remote bytes, shared.down += remote→local bytes.
+async fn relay_counted(sock: tokio::net::TcpStream, upstream: proto::BoxStream, shared: Arc<Shared>) {
+    let (mut s_read, mut s_write) = tokio::io::split(sock);
+    let (mut u_read, mut u_write) = tokio::io::split(upstream);
+    let a = async {
+        let mut buf = [0u8; 16 * 1024];
+        loop {
+            match s_read.read(&mut buf).await {
+                Ok(0) => break,
+                Ok(n) => {
+                    shared.up.fetch_add(n as u64, Ordering::Relaxed);
+                    if u_write.write_all(&buf[..n]).await.is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        let _ = u_write.flush().await;
+    };
+    let b = async {
+        let mut buf = [0u8; 16 * 1024];
+        loop {
+            match u_read.read(&mut buf).await {
+                Ok(0) => break,
+                Ok(n) => {
+                    shared.down.fetch_add(n as u64, Ordering::Relaxed);
+                    if s_write.write_all(&buf[..n]).await.is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        let _ = s_write.flush().await;
+    };
+    tokio::join!(a, b);
+}
+
+/// Real public-IP check THROUGH the tunnel: cloudflare /cdn-cgi/trace over TLS
+/// dialed via the connected server. Best-effort; stores ip + country code.
+async fn ip_check_through_tunnel(shared: &Arc<Shared>, srv: &Server) {
+    let host = "www.cloudflare.com";
+    let dst = Addr::new(host.to_string(), 443);
+    let Ok(tcp) = proto::dial(srv, &dst).await else { return };
+    let connector = crate::tls::connector_verified();
+    let Ok(mut tls) = connector.connect(crate::tls::sni_name(host), tcp).await else { return };
+    let req = format!(
+        "GET /cdn-cgi/trace HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n",
+        host
+    );
+    if tls.write_all(req.as_bytes()).await.is_err() {
+        return;
+    }
+    let mut raw = Vec::new();
+    let mut buf = [0u8; 4096];
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(8000);
+    loop {
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if left.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(left, tls.read(&mut buf)).await {
+            Ok(Ok(0)) | Err(_) => break,
+            Ok(Ok(n)) => {
+                raw.extend_from_slice(&buf[..n]);
+                if raw.len() > 64 * 1024 {
+                    break;
+                }
+            }
+            Ok(Err(_)) => break,
+        }
+    }
+    let text = String::from_utf8_lossy(&raw);
+    let mut ip = None;
+    let mut cc = None;
+    for line in text.split('\n') {
+        if let Some(v) = line.strip_prefix("ip=") {
+            ip = Some(v.trim().to_string());
+        } else if let Some(v) = line.strip_prefix("loc=") {
+            cc = Some(v.trim().to_string());
+        }
+    }
+    if let Some(ip) = ip {
+        let mut st = shared.status();
+        // only report if still connected to the same server
+        if st.phase == Phase::Connected {
+            st.ip = Some(ip);
+            st.ip_cc = cc;
+            shared.set_status(st);
+        }
+    }
 }
 
 async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<String>) {
@@ -461,6 +588,7 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
     let n = servers.len();
     *shared.pings.lock().unwrap() = vec![u32::MAX; n];
     *shared.servers.lock().unwrap() = servers;
+    shared.servers_gen.fetch_add(1, Ordering::SeqCst);
     shared.fetching.store(false, Ordering::SeqCst);
     shared.repaint();
     let _ = n;

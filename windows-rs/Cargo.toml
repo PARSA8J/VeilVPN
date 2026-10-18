@@ -1,13 +1,11 @@
 [package]
 name = "veilvpn"
-version = "1.6.7"
+version = "1.6.8"
 edition = "2021"
-description = "VeilVPN — native Windows client. See nothing. Be invisible."
+description = "Mehrveil — native Windows client (Rust core + WebView2 UI). See nothing. Be invisible."
 license = "MIT"
 
 [dependencies]
-eframe = { version = "0.31", features = ["wgpu"] }
-egui = "0.31"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
@@ -20,10 +18,20 @@ hkdf = "0.12"
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-image = { version = "0.25", default-features = false, features = ["png"] }
 rand = "0.8"
 
 [target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+webview2-com = "0.39"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_System_Registry",

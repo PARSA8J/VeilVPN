@@ -23,36 +23,25 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Mehrveil-Android
-          path: dist/Mehrveil-1.6.7.apk
+          path: dist/Mehrveil-1.6.8.apk
 
   windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install llvm-mingw (linux-hosted cross toolchain)
-        run: |
-          mkdir -p "$HOME/tools" && cd "$HOME/tools"
-          curl -sL -o lm.tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/20240917/llvm-mingw-20240917-ucrt-ubuntu-20.04-x86_64.tar.xz
-          tar -xf lm.tar.xz && mv llvm-mingw-20240917-ucrt-ubuntu-20.04-x86_64 llvm-mingw && rm lm.tar.xz
-          # libgcc shims for rust's windows-gnu linker args
-          mkdir -p "$HOME/tools/fakelibs"
-          ln -sf "$HOME/tools/llvm-mingw/x86_64-w64-mingw32/lib/libunwind.a" "$HOME/tools/fakelibs/libgcc.a"
-          ln -sf "$HOME/tools/llvm-mingw/x86_64-w64-mingw32/lib/libunwind.a" "$HOME/tools/fakelibs/libgcc_eh.a"
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: windows-rs
-      - name: Build EXE (Rust native)
+      - name: Build EXE (Rust core + WebView2 UI, MSVC)
+        shell: bash
         run: |
           mkdir -p dist
-          export PATH="$HOME/tools/llvm-mingw/bin:$PATH"
-          OUT_DIR=dist RUSTFLAGS="-L $HOME/tools/fakelibs" bash scripts/build_exe.sh
+          OUT_DIR=dist bash scripts/build_exe.sh
       - uses: actions/upload-artifact@v4
         with:
           name: Mehrveil-Windows
-          path: dist/Mehrveil-1.6.7.exe
+          path: dist/Mehrveil-1.6.8.exe
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

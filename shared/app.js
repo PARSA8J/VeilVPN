@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.7 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.8 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -7,12 +7,14 @@ var BRIDGE = {
   platform: 'web',
   native: null,
   base: '',
+  k: '',
   cbs: {}, cbn: 0,
+  qs: function(){ return this.k ? ('?k='+encodeURIComponent(this.k)) : ''; },
   detect: function(){
     if (window.VeilNative && typeof window.VeilNative.api === 'function'){
       this.platform='android'; this.native=window.VeilNative; return;
     }
-    if (window.__VEIL_WIN__){ this.platform='windows'; this.base=window.__VEIL_WIN__.base||''; return; }
+    if (window.__VEIL_WIN__){ this.platform='windows'; this.base=window.__VEIL_WIN__.base||''; this.k=window.__VEIL_WIN__.k||''; return; }
     this.platform='web';
   },
   call: function(action, payload){
@@ -27,7 +29,7 @@ var BRIDGE = {
         setTimeout(function(){ if(self.cbs[id]){ delete self.cbs[id]; rej(new Error('timeout')); } }, 30000);
       });
     }
-    return fetch(this.base+'api/'+action, {
+    return fetch(this.base+'api/'+action+this.qs(), {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     }).then(function(r){ return r.json(); });
@@ -321,9 +323,10 @@ function onStatus(st){
   if(st.server){ var m=state.servers.find(function(s){return s.id===st.server.id;}); if(m) state.selected=m; else { state.selected=Object.assign({cc:'XX'},st.server); } }
   applyStatusClass();
   if(state.status==='connected'){
+    /* keep the elapsed-time timer running when only the IP check landed */
+    if(prev!=='connected'){ startLiveData(); }
     connectTitle.textContent=window.t('connected');
     statusText.textContent=window.t('protected');
-    startLiveData();
     loadIpInfo();
   } else if(state.status==='connecting'){
     connectTitle.textContent=window.t('connecting');
@@ -393,7 +396,7 @@ document.querySelectorAll('.feature').forEach(function(btn){
 /* ---------------- windows event poll ---------------- */
 function winEvents(){
   if(BRIDGE.platform!=='windows') return;
-  fetch(BRIDGE.base+'api/events').then(function(r){return r.json();}).then(function(ev){
+  fetch(BRIDGE.base+'api/events'+BRIDGE.qs()).then(function(r){return r.json();}).then(function(ev){
     if(ev){
       if(ev.kind==='status') onStatus(ev.state);
       else if(ev.kind==='servers') onServers(ev.servers);
@@ -410,7 +413,7 @@ connectBtn.addEventListener('click', function(){
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.7 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.8 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();
@@ -419,8 +422,17 @@ function boot(){
   BRIDGE.call('getState',{}).then(function(g){
     if(!g) return;
     state.platform=g.platform;
+    if(g.version) document.getElementById('verMark').textContent='v'+g.version+' · '+BRIDGE.platform;
     if(g.features){ state.features=g.features;
-      document.querySelectorAll('.feature').forEach(function(b){ b.classList.toggle('on', !!g.features[b.dataset.feature]); }); }
+      document.querySelectorAll('.feature').forEach(function(b){
+        b.classList.toggle('on', !!g.features[b.dataset.feature]);
+        /* features we can honestly deliver on this platform only */
+        b.style.display = (b.dataset.feature in g.features) ? '' : 'none';
+      });
+      var anyFeat = Object.keys(g.features).length > 0;
+      var featSec = document.querySelector('.features');
+      if(featSec) featSec.style.display = anyFeat ? '' : 'none';
+    }
     if(g.lang){ applyLang(g.lang); fillLangs(); }
     if(g.status && g.status!=='disconnected'){
       state.status=g.status;
