@@ -436,7 +436,10 @@ fn handle_conn(mut stream: std::net::TcpStream, api: &Arc<WebApi>) -> std::io::R
             token_ok = v == api.token;
         }
     }
-    if !token_ok {
+    // favicon is requested automatically by the browser without a query —
+    // it is the public app icon, harmless to serve without the token
+    let is_favicon = method == "GET" && path == "/favicon.ico";
+    if !token_ok && !is_favicon {
         let _ = stream.write_all(&json_res("403 Forbidden", &serde_json::json!({"error":"bad token"})));
         return Ok(());
     }
@@ -471,12 +474,32 @@ fn handle_conn(mut stream: std::net::TcpStream, api: &Arc<WebApi>) -> std::io::R
     // ---------------- routes ----------------
     let resp = match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/") | ("GET", "/index.html") => {
-            http_res("200 OK", "text/html; charset=utf-8", INDEX_HTML.as_bytes().to_vec())
+            // every request must carry the launch token — including the page's
+            // own <script> sub-resources, which get it injected at serve time
+            // (v1.6.10 fix: without this, app.js/i18n.js were requested WITHOUT
+            //  ?k= and 403'd — zero JS ran: dead buttons, empty server list)
+            let html = INDEX_HTML
+                .replace(
+                    "src=\"app.js\"",
+                    &format!("src=\"app.js?k={}\"", api.token),
+                )
+                .replace(
+                    "src=\"i18n.js\"",
+                    &format!("src=\"i18n.js?k={}\"", api.token),
+                );
+            http_res("200 OK", "text/html; charset=utf-8", html.into_bytes())
         }
         ("GET", "/app.js") => http_res("200 OK", "application/javascript; charset=utf-8", APP_JS.as_bytes().to_vec()),
         ("GET", "/i18n.js") => http_res("200 OK", "application/javascript; charset=utf-8", I18N_JS.as_bytes().to_vec()),
         ("GET", "/favicon.ico") => http_res("200 OK", "image/png", crate::seed::ICON_PNG.to_vec()),
         ("GET", "/api/events") => route_events(api),
+        ("POST", "/api/log") => {
+            // UI-side diagnostics: JS errors land in %APPDATA%\Mehrveil\log.txt
+            let msg = String::from_utf8_lossy(&req.body);
+            let msg = msg.trim().chars().take(400).collect::<String>();
+            crate::sysproxy::log_line(&format!("[ui] {}", msg));
+            json_res("200 OK", &serde_json::json!({ "ok": true }))
+        }
         ("POST", p) if p.starts_with("/api/") => {
             let action = &p["/api/".len()..];
             let payload: serde_json::Value =
@@ -509,6 +532,12 @@ fn route_events(api: &Arc<WebApi>) -> Vec<u8> {
 fn route_action(api: &Arc<WebApi>, action: &str, p: &serde_json::Value) -> Vec<u8> {
     let resp = match action {
         "getState" => api.state_json(),
+        // v1.6.10: full synchronous snapshot — the UI calls this on every boot
+        // (and every reload), so the list never depends on one-shot events
+        "snapshot" => serde_json::json!({
+            "status": api.ui_status(),
+            "servers": api.servers_json(),
+        }),
         "connect" => api.action_connect(p),
         "disconnect" => {
             let _ = api.send_cmd(Cmd::Disconnect);

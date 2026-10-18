@@ -112,6 +112,13 @@ fn run_windows() -> Result<(), Box<dyn std::error::Error>> {
     let api = webapi::WebApi::spawn(shared.clone(), cfg.clone(), engine.tx.clone());
     *shared.hwnd.lock().unwrap() = Some(hwnd.0 as isize);
 
+    // v1.6.10: real ping round immediately (list pings + fastest-node pick),
+    // and an initial UI snapshot pushed straight into the events queue — the
+    // UI now gets servers even before any native repaint fires.
+    let _ = engine.tx.send(engine::Cmd::PingAll);
+    api.push_status_event();
+    api.push_servers_event();
+
     winui::set_repaint_cb(Box::new({
         let api = api.clone();
         move || api.notify_repaint()

@@ -197,10 +197,18 @@ async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, st
                 crate::sysproxy::disable();
             }
             Cmd::FetchSources { urls, custom } => {
-                fetch_sources(&shared, &urls, custom).await;
+                // v1.6.10: run OFF the command loop — subscription fetching can
+                // crawl (blocked/slow URLs); Connect/Disconnect must stay live.
+                let shared2 = shared.clone();
+                tokio::spawn(async move {
+                    fetch_sources(&shared2, &urls, custom).await;
+                });
             }
             Cmd::PingAll => {
-                ping_all(&shared).await;
+                let shared2 = shared.clone();
+                tokio::spawn(async move {
+                    ping_all(&shared2).await;
+                });
             }
         }
     }
@@ -597,7 +605,11 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
 }
 
 async fn fetch_url(url: &str) -> io::Result<String> {
-    crate::fetch::http_get(url, 8 * 1024 * 1024).await
+    // overall cap per source: a blocked/hanging URL must never stall the UI
+    match tokio::time::timeout(Duration::from_secs(8), crate::fetch::http_get(url, 8 * 1024 * 1024)).await {
+        Ok(r) => r,
+        Err(_) => Err(io::Error::new(io::ErrorKind::TimedOut, "source fetch timeout")),
+    }
 }
 
 async fn ping_all(shared: &Arc<Shared>) {

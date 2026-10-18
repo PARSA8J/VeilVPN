@@ -1,4 +1,4 @@
-/* Mehrveil 1.6.9 — shared app logic (Android bridge / Windows local API). No fake data. */
+/* Mehrveil 1.6.10 — shared app logic (Android bridge / Windows local API). No fake data. */
 (function(){
 'use strict';
 
@@ -15,6 +15,11 @@ var BRIDGE = {
       this.platform='android'; this.native=window.VeilNative; return;
     }
     if (window.__VEIL_WIN__){ this.platform='windows'; this.base=window.__VEIL_WIN__.base||''; this.k=window.__VEIL_WIN__.k||''; return; }
+    /* v1.6.10 fallback: the page itself is served with ?k=<token>; use it even
+       if the injected init script never ran (WebView2 edge cases, AV filters).
+       Same-origin relative fetches — no injected global needed at all. */
+    var m=(location.search||'').match(/[?&]k=([A-Za-z0-9]+)/);
+    if (m){ this.platform='windows'; this.base=''; this.k=decodeURIComponent(m[1]); return; }
     this.platform='web';
   },
   call: function(action, payload){
@@ -44,6 +49,16 @@ var BRIDGE = {
 };
 window.__nCb = function(id, json){ BRIDGE.resolve(id, json); };
 window.__nErr = function(id, msg){ BRIDGE.reject(id, msg); };
+/* UI-side diagnostics: JS errors go to the app log (%APPDATA%\Mehrveil\log.txt) */
+function uiLog(msg){
+  try{
+    if (BRIDGE.platform==='windows' && BRIDGE.k){
+      fetch(BRIDGE.base+'api/log'+BRIDGE.qs(), {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({m:String(msg).slice(0,380)})}).catch(function(){});
+    }
+  }catch(e){}
+}
+window.addEventListener('error', function(e){ uiLog('JS error: '+(e.message||'?')+' @ '+(e.filename||'').split('/').pop()+':'+(e.lineno||0)); });
+window.addEventListener('unhandledrejection', function(e){ uiLog('JS rejection: '+(e&&e.reason&&e.reason.message||e.reason||'?')); });
 window.__nEvent = function(kind, json){
   try{
     var d = typeof json === 'string' ? JSON.parse(json) : json;
@@ -71,7 +86,7 @@ AM:['Armenia','Yerevan'],AZ:['Azerbaijan','Baku'],GR:['Greece','Athens'],CY:['Cy
 function ccName(cc){ return (C[cc]||[cc||'Veil','Global'])[0]; }
 function ccCity(cc){ return (C[cc]||['Veil','Global'])[1]; }
 function ccFlag(cc){
-  if(!cc||cc.length!==2) return '🛡️';
+  if(!cc||cc.length!==2||cc==='XX') return '🛡️';
   var a=cc.charCodeAt(0),b=cc.charCodeAt(1);
   if(a<65||a>90||b<65||b>90) return '🛡️';
   return String.fromCodePoint(0x1F1E6+(a-65))+String.fromCodePoint(0x1F1E6+(b-65));
@@ -118,6 +133,8 @@ function applyLang(lang){
 }
 function refreshStaticText(){
   if(state.status==='disconnected') updateIdleUI();
+  else if(state.status==='connected') connectTitle.textContent=window.t('connected');
+  else if(state.status==='connecting'||state.status==='reconnecting') connectTitle.textContent=window.t('connecting');
   statusText.textContent = window.t(state.status==='connected'?'protected':state.status==='connecting'?'connecting':'disconnected');
 }
 
@@ -408,19 +425,23 @@ function winEvents(){
 connectBtn.addEventListener('click', function(){
   if(state.status==='disconnected') connect();
   else if(state.status==='connected') doDisconnect(false);
+  else if(state.status==='connecting') toast(window.t('connecting')+'…');
 });
 
 /* ---------------- boot ---------------- */
 function boot(){
   BRIDGE.detect();
-  document.getElementById('verMark').textContent='v1.6.9 · '+BRIDGE.platform;
+  document.getElementById('verMark').textContent='v1.6.10 · '+BRIDGE.platform;
   state.lang=detectLang();
   applyLang(state.lang);
   renderServers();
   applyStatusClass();
   updateIdleUI();
-  BRIDGE.call('getState',{}).then(function(g){
-    if(!g) return;
+  /* v1.6.10: retry getState — the local API is up before the page loads, but
+     never give up after one hiccup (10 tries, 1s apart) */
+  var tryGet=function(n){
+    BRIDGE.call('getState',{}).then(function(g){
+      if(!g && n<10){ setTimeout(function(){ tryGet(n+1); },1000); return; }
     state.platform=g.platform;
     if(g.version) document.getElementById('verMark').textContent='v'+g.version+' · '+BRIDGE.platform;
     if(g.features){ state.features=g.features;
@@ -442,10 +463,21 @@ function boot(){
       else { connectTitle.textContent=window.t('connecting'); statusText.textContent=window.t('connecting'); }
     }
     state.bootReady=true;
-    return BRIDGE.call('fetchServers',{});
+    /* v1.6.10: synchronous snapshot first — servers + status immediately,
+       no dependency on one-shot events (survives page reloads too) */
+    return BRIDGE.call('snapshot',{}).then(function(s){
+      if(s&&s.status) onStatus(s.status);
+      if(s&&s.servers&&s.servers.length) onServers(s.servers);
+      return BRIDGE.call('fetchServers',{});
+    });
   }).then(function(r){
     if(r&&r.servers&&r.servers.length){ onServers(r.servers); }
-  }).catch(function(){});
+    }).catch(function(err){
+      uiLog('boot getState failed: '+(err&&err.message||err));
+      if(n<10) setTimeout(function(){ tryGet(n+1); },1000);
+    });
+  };
+  tryGet(0);
   if(BRIDGE.platform==='windows') winEvents();
 }
 var showAllBtnEl=document.getElementById('showAllBtn');

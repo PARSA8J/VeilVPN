@@ -30,7 +30,7 @@
     min-height:100vh;
     display:flex;
     justify-content:center;
-    padding:20px 18px 32px;
+    padding:clamp(12px,2.5vh,20px) clamp(12px,4vw,18px) clamp(20px,4vh,32px);
     overflow-x:hidden;
     -webkit-font-smoothing:antialiased;
     position:relative;
@@ -91,14 +91,36 @@
       0 4px 8px rgba(0,0,0,0.08),
       0 12px 32px rgba(31,38,58,0.10);
   }
+  /* v1.6.10 — deeper Liquid Glass (user-reference component recipe):
+     blurred inner dark ring + 45° specular gloss overlay, layered
+     BEHIND content so text stays crisp */
+  .glass::before{
+    content:'';position:absolute;z-index:0;
+    top:22%;left:50%;transform:translateX(-50%);
+    width:calc(100% - 16px);height:calc(100% - 16px);
+    border-radius:inherit;
+    border:1px solid rgba(35,38,46,0.9);
+    filter:blur(10px);opacity:.10;pointer-events:none;
+  }
+  .glass::after{
+    content:'';position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(45deg,
+      rgba(255,255,255,0.85) 0%,
+      transparent var(--tr,22%),
+      transparent calc(100% - var(--tr,22%)),
+      rgba(255,255,255,0.85) 100%);
+    filter:blur(7px);opacity:.55;
+  }
+  .glass > *{position:relative;z-index:1}
 
   /* ============================================================
      APP LAYOUT
      ============================================================ */
   .app{
     position:relative;z-index:1;
-    width:100%;max-width:400px;
-    display:flex;flex-direction:column;gap:14px;
+    width:100%;max-width:min(400px,100%);
+    margin:auto; /* vertical centering that never clips when content is taller */
+    display:flex;flex-direction:column;gap:clamp(10px,1.8vh,14px);
   }
   .app > *{animation:rise .7s cubic-bezier(.22,1,.36,1) backwards}
   .app > *:nth-child(1){animation-delay:.02s}
@@ -198,8 +220,10 @@
 
   .connect-wrap{
     position:relative;
-    width:158px;height:158px;
+    width:clamp(126px,36vmin,158px);height:clamp(126px,36vmin,158px);
     display:grid;place-items:center;
+    /* fx-layer: alpha-contrast makes the specular overlaps read as real glass */
+    filter:saturate(118%) contrast(1.16);
   }
 
   .ring{
@@ -219,7 +243,7 @@
 
   .connect-btn{
     position:relative;
-    width:140px;height:140px;border-radius:50%;
+    width:clamp(112px,32vmin,140px);height:clamp(112px,32vmin,140px);border-radius:50%;
     display:grid;place-items:center;
     cursor:pointer;
     color:var(--ink-faint);
@@ -232,7 +256,7 @@
       inset -2px 2px 1px -1px rgba(255,255,255,0.95),
       inset 6px -6px 1px -6px rgba(255,255,255,0.6),
       inset -6px 6px 1px -6px rgba(255,255,255,0.6),
-      inset 0 0 2px rgba(0,0,0,0.07),
+      inset 0 0 2px rgba(0,0,0,0.10),
       0 4px 8px rgba(0,0,0,0.10),
       0 14px 34px rgba(31,38,58,0.12);
     transition:
@@ -244,27 +268,30 @@
   }
   .connect-btn::before{
     content:'';position:absolute;inset:5px;border-radius:50%;
-    border:1px solid rgba(35,38,46,0.08);
-    filter:blur(3px);
+    border:1px solid rgba(35,38,46,0.10);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.30);
+    filter:blur(6px);
     pointer-events:none;
   }
   .connect-btn::after{
     content:'';position:absolute;inset:0;border-radius:50%;
     background:linear-gradient(45deg,
-      rgba(255,255,255,0.85) 0%,
-      transparent 25%,
-      transparent 75%,
-      rgba(255,255,255,0.85) 100%);
+      rgba(255,255,255,0.9) 0%,
+      transparent 22%,
+      transparent 78%,
+      rgba(255,255,255,0.9) 100%);
+    filter:blur(6px);
     pointer-events:none;
   }
-  .connect-btn:hover{transform:scale(1.04)}
-  .connect-btn:active{transform:scale(.96)}
+  .connect-btn:hover{transform:scale(1.04) translateY(-2px)}
+  .connect-btn:active{transform:scale(.95)}
   .connect-btn:focus-visible{outline:2px solid rgba(10,132,255,.8);outline-offset:6px}
 
   .connect-btn svg{
-    width:58px;height:58px;
+    width:clamp(48px,13.5vmin,58px);height:clamp(48px,13.5vmin,58px);
     transition:transform .5s cubic-bezier(.34,1.56,.64,1),filter .5s,opacity .3s;
     position:relative;z-index:1;
+    filter:drop-shadow(0 10px 4px rgba(102,102,102,.22));
   }
   .connect-btn .icon-veil{opacity:1}
   .connect-btn .icon-check{position:absolute;opacity:0;transform:scale(.5)}
@@ -417,14 +444,14 @@
     -webkit-tap-highlight-color:transparent;
   }
   .showall:hover{background:rgba(255,255,255,.85);transform:translateY(-1px)}
-  .showall:active{transform:scale(.95)}
+  .showall:active{transform:scale(.94)}
 
   /* ============================================================
      SERVER LIST
      ============================================================ */
   .server-list{
     display:flex;flex-direction:column;gap:4px;
-    max-height:196px;overflow-y:auto;padding-right:2px;
+    max-height:clamp(150px,26vh,196px);overflow-y:auto;padding-right:2px;
     scrollbar-width:thin;
     scrollbar-color:rgba(35,38,46,.18) transparent;
   }
@@ -552,11 +579,20 @@
   }
 
   @media (max-width:380px){
-    .connect-wrap{width:146px;height:146px}
-    .connect-btn{width:128px;height:128px}
-    .connect-btn svg{width:52px;height:52px}
     .stat-value{font-size:13px}
     .brand{font-size:16px}
+    .connect-title{font-size:17.5px}
+  }
+  /* short windows / landscape phones — compress vertically */
+  @media (max-height:660px){
+    .connect-zone{padding:8px 0 0;gap:10px}
+    .stat{padding:9px 8px 8px}
+    .section{padding:11px}
+  }
+  @media (max-height:520px){
+    .app{gap:8px}
+    .header{padding:0}
+    .stats{display:none}
   }
 
   @media (prefers-reduced-motion:reduce){
@@ -717,7 +753,7 @@
       </div>
     </section>
 
-    <p class="foot"><span class="brand-mark">MEHR</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.6.9</span></p>
+    <p class="foot"><span class="brand-mark">MEHR</span> · AES-256 · Zero-Log · <span class="ver" id="verMark">v1.6.10</span></p>
   </main>
 
   <!-- SETTINGS -->
