@@ -25,13 +25,13 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.10.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.10.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.10/Mehrveil-1.6.10.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.10.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.10.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.10/Mehrveil-1.6.10.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.11.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.11.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.11/Mehrveil-1.6.11.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.11.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.11.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.11/Mehrveil-1.6.11.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases have been removed** — only **v1.6.10** is distributed. Download **only** files named `Mehrveil-1.6.10.apk` / `Mehrveil-1.6.10.exe`.
-> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `71f4f2f57fab9326ca3196853c8a7be5190402fed0ecea85e55e16ef6c198fc8`. A different size = corrupted download → re-download from the direct link.
-> 🪟 Windows EXE integrity — **1,666,048 bytes (~1.6 MB)** · SHA-256 `5d9edde2a7e17f4e78d8d77d1d7afdc2b22c03bcd6191ddcdccb4149dfccb3b8`.
-> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.10** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.10 again.
+> ⚠️ **Old releases have been removed** — only **v1.6.11** is distributed. Download **only** files named `Mehrveil-1.6.11.apk` / `Mehrveil-1.6.11.exe`.
+> ✅ File integrity — the correct APK is exactly **119,890 bytes (~117 KB)** · SHA-256 `7c092f784c0ed3144bec450bc3ac1656843127398dcd8e7cb61cbd4616a6a1e1`. A different size = corrupted download → re-download from the direct link.
+> 🪟 Windows EXE integrity — **1,679,872 bytes (~1.6 MB)** · SHA-256 `5d5d823f5bdf5075012e4e3895530ebe7b16c8880820a278303e59635a3cd141`.
+> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.11** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.11 again.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -75,8 +75,15 @@ If the installer shows the app name + icon but still says **«App not installed�
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.10.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
+1. Download `Mehrveil-1.6.11.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
+
+## 🆕 What's new in v1.6.11
+
+- **Pings now actually appear.** The engine measures every node in the background, but the old UI declared every server "dead" after two empty polls (~1 s) — long before any measurement landed — so you never saw a ping. Results now stream in per batch with a live `testing x/y` counter, and a node is only marked dead after the full pass finishes. A failed TCP ping no longer hides a usable node either (3 s timeout instead of 1.5 s).
+- **Connect actually connects.** The failover pool grew from 6 to 24 candidates, probed in parallel waves of 6 (first verified success wins, ~4× faster), sorted by real measured ping. The attempt runs off the engine loop and is cancellable by tapping the button again.
+- **Honest server list:** configs with transports this build cannot dial (REALITY, gRPC, KCP, QUIC, H2) are dropped at fetch time instead of ranking as "fast" candidates that could never connect.
+- **Honest failure too:** the real error surfaces (`24 of 24 candidates failed — last: …`) plus a 75 s watchdog, so the UI can never spin forever.
 
 ## 🆕 What's new in v1.6.10
 
@@ -87,7 +94,7 @@ If the installer shows the app name + icon but still says **«App not installed�
 
 ## 🆕 What's new in v1.6.9
 
-- **Fix for the "can't reach this page" startup error.** On many machines v1.6.8 opened with a browser-style error page (`http://127.0.0.1:0` — ERR_UNSAFE_PORT) instead of the app: the window was pointed at the internal UI server before that server had picked its port. v1.6.10 binds the port **before** the window is created and can never navigate to an invalid address — plus a safe native error dialog instead of any browser error page, ever.
+- **Fix for the "can't reach this page" startup error.** On many machines v1.6.8 opened with a browser-style error page (`http://127.0.0.1:0` — ERR_UNSAFE_PORT) instead of the app: the window was pointed at the internal UI server before that server had picked its port. v1.6.11 binds the port **before** the window is created and can never navigate to an invalid address — plus a safe native error dialog instead of any browser error page, ever.
 - **Everything else is exactly v1.6.8** — same WebView2 Liquid Glass UI, same Rust core, same features. If v1.6.8 showed you an error page instead of the app, install this one.
 
 ## 🆕 What's new in v1.6.8
@@ -100,6 +107,13 @@ If the installer shows the app name + icon but still says **«App not installed�
 - **One honest requirement:** Windows 10/11 with the WebView2 Runtime (pre-installed on Windows 11 and on virtually all updated Windows 10 systems). If it is missing, the app tells you exactly what to install instead of showing a broken window. The EXE is now also ~4× smaller because the UI engine ships with Windows.
 
 
+### 🆕 v1.6.11 چه چیزی عوض شد؟
+
+- **پینگ‌ها واقعاً نمایش داده می‌شوند.** رابط قدیمی بعد از دو نظرسنجی خالی (~۱ ثانیه) همهٔ سرورها را «مُرده» اعلام می‌کرد — قبل از رسیدن هیچ اندازه‌گیری‌ای — پس هرگز پینگی نمی‌دیدید. حالا نتایج دسته‌به‌دسته با شمارندهٔ زندهٔ «در حال تست x/y» می‌آیند و نود فقط پس از پایان کامل passe مُرده علامت می‌خورد (تایم‌اوت ۳ ثانیه به‌جای ۱/۵ ثانیه).
+- **اتصال واقعاً وصل می‌شود.** استخر failover از ۶ به ۲۴ کاندید رسید و به‌صورت موج‌های موازی ۶تایی probe می‌شود (اولین موفقیت تأییدشده برنده است)، مرتب‌شده بر اساس پینگ واقعی. تلاش اتصال از حلقهٔ اصلی موتور خارج شده و با لمس دوبارهٔ دکمه لغو می‌شود.
+- **لیست سرور صادقانه:** کانفیگ‌های با ترنسپورت قابل پشتیبانی‌نبودن (REALITY، gRPC، KCP، QUIC، H2) هنگام دریافت حذف می‌شوند تا اتصال را خراب نکنند.
+- **شکست هم صادقانه:** خطای واقعی نمایش داده می‌شود و یک watchdog ۷۵ ثانیه‌ای تضمین می‌کند رابط هرگز بی‌نهایت نچرخد.
+
 ### 🆕 v1.6.10 چه چیزی عوض شد؟
 
 - **رفع خرابی رابط کاربری.** سرور داخلی روی همهٔ درخواست‌ها توکن می‌خواست ولی مرورگر اسکریپت‌های خود صفحه را بدون توکن می‌خواند — پس `app.js` و `i18n.js` رد می‌شدند و **هیچ کدی از رابط اجرا نمی‌شد**: دکمه‌ها بی‌اثر و لیست سرور خالی بود. حالا توکن هنگام سرو شدن داخل اسکریپت‌ها تزریق می‌شود و API همچنان محافظت‌شده است.
@@ -109,7 +123,7 @@ If the installer shows the app name + icon but still says **«App not installed�
 
 ### 🆕 v1.6.9 چه چیزی عوض شد؟
 
-- **رفع ارور «can't reach this page» هنگام باز شدن برنامه.** در v1.6.8 روی خیلی از سیستم‌ها به‌جای برنامه یک صفحهٔ خطای مرورگر باز می‌شد (`http://127.0.0.1:0` — ERR_UNSAFE_PORT): پنجره قبل از آماده‌شدن پورتِ سرور داخلی به آن آدرس می‌رفت. در v1.6.10 پورت قبل از ساخته‌شدن پنجره قطعی می‌شود و برنامه هیچ‌وقت به آدرس نامعتبر نمی‌رود — و در بدترین حالت هم به‌جای صفحهٔ خطای مرورگر، یک پیام بومی واضح نشان داده می‌شود.
+- **رفع ارور «can't reach this page» هنگام باز شدن برنامه.** در v1.6.8 روی خیلی از سیستم‌ها به‌جای برنامه یک صفحهٔ خطای مرورگر باز می‌شد (`http://127.0.0.1:0` — ERR_UNSAFE_PORT): پنجره قبل از آماده‌شدن پورتِ سرور داخلی به آن آدرس می‌رفت. در v1.6.11 پورت قبل از ساخته‌شدن پنجره قطعی می‌شود و برنامه هیچ‌وقت به آدرس نامعتبر نمی‌رود — و در بدترین حالت هم به‌جای صفحهٔ خطای مرورگر، یک پیام بومی واضح نشان داده می‌شود.
 - **بقیهٔ چیزها دقیقاً مثل v1.6.8 است** — همان رابط Liquid Glass با WebView2، همان هستهٔ Rust. اگر v1.6.8 برای شما صفحهٔ خطا نشان می‌داد، همین نسخه را نصب کنید.
 
 ### 🆕 v1.6.8 چه چیزی عوض شد؟
@@ -137,13 +151,13 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.10.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.11.apk
 ```
 
 ### Windows (Rust core + WebView2 shell — MSVC)
 ```bash
 cd windows-rs && cargo test        # e2e protocol tests + UI-bridge contract test
-cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.10.exe  (needs the MSVC toolchain — as on windows-latest CI)
+cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.11.exe  (needs the MSVC toolchain — as on windows-latest CI)
 ```
 
 ### Server seed list
@@ -175,8 +189,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.10.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.10.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.11.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.11.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -188,12 +202,12 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.10.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.10.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.10/Mehrveil-1.6.10.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.10.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.10.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.10/Mehrveil-1.6.10.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.11.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.11.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.11/Mehrveil-1.6.11.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.11.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.11.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.11/Mehrveil-1.6.11.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.10** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.10.apk` / `Mehrveil-1.6.10.exe` را دانلود کن.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.11** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.11.apk` / `Mehrveil-1.6.11.exe` را دانلود کن.
 > ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۱۹٬۸۹۰ بایت (~۱۱۷ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
-> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.10** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.10 را دوباره دانلود کن.
+> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.11** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.11 را دوباره دانلود کن.
 
 ### ❓ «App not installed» — عیب‌یابی
 
