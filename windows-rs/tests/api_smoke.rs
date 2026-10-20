@@ -136,7 +136,7 @@ fn webapi_contract() {
     let g: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(g["platform"], "windows");
     assert_eq!(g["status"], "disconnected");
-    assert_eq!(g["version"], "1.6.11");
+    assert_eq!(g["version"], "1.6.12");
     assert!(g["features"]["auto"].is_boolean());
 
     // --- servers arrive via the events queue (gen bump + repaint) ---

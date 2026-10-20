@@ -145,14 +145,37 @@ impl Drop for Engine {
     }
 }
 
-static SOURCES: &[&str] = &[
-    "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Providers_Configs.txt",
-    "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Providers_Configs.txt",
-    "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/Eternity",
-    "https://cdn.jsdelivr.net/gh/mahdibland/ShadowsocksAggregator@master/Eternity",
-    "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/Splitted-By-Protocol/vless.txt",
-    "https://cdn.jsdelivr.net/gh/barry-far/V2ray-Configs@main/Splitted-By-Protocol/vless.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/Splitted-By-Protocol/trojan.txt",
+/// v1.6.12: grouped source list. Each GROUP holds mirrors of the SAME upstream
+/// list; all URLs race in parallel and the first usable answer per group wins
+/// (mirrors exist for reachability, not for duplicate data).
+///
+/// Why the old list broke (user report "server error", empty list, no pings):
+/// upstream repos renamed/moved their files — `All_Providers_Configs.txt` is now
+/// `All_Configs_Sub.txt`, and the whole barry-far repo disappeared. 6 of the 7
+/// old URLs returned 404, the parse produced ~0 supported servers, and the
+/// empty result REPLACED the healthy embedded seed list at boot.
+///
+/// Ordering inside each group: Iran-reachable front-ends first (raw.githubusercontent.com
+/// is blocked for Iranian IPs — GitHub sanctions), plain raw last.
+static SOURCE_GROUPS: &[&[&str]] = &[
+    // 0 — our own GitHub Pages sub: curated, TCP-verified at release time,
+    //     reachable from Iran (github.io), refreshed with every release.
+    &["https://parsa8j.github.io/VeilVPN/sub.txt"],
+    // 1 — Epodonios aggregated list (~7k configs), 7 mirrors
+    &[
+        "https://gh-proxy.com/https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+        "https://ghproxy.net/https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+        "https://cdn.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+        "https://gcore.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+        "https://fastly.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+        "https://testingcf.jsdelivr.net/gh/Epodonios/v2ray-configs@main/All_Configs_Sub.txt",
+        "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+    ],
+    // 2 — mahdibland merged aggregator (~4k configs), 2 mirrors
+    &[
+        "https://cdn.jsdelivr.net/gh/mahdibland/V2RayAggregator@master/sub/sub_merge.txt",
+        "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
+    ],
 ];
 
 async fn engine_loop(shared: Arc<Shared>, rx: std::sync::mpsc::Receiver<Cmd>, stop: Arc<AtomicBool>) {
@@ -641,29 +664,55 @@ async fn ip_check_through_tunnel(shared: &Arc<Shared>, srv: &Server) {
 async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<String>) {
     shared.fetching.store(true, Ordering::SeqCst);
     shared.repaint();
-    let mut text_all = String::new();
-    let mut list: Vec<String> = urls.to_vec();
-    if list.is_empty() {
-        list.extend(SOURCES.iter().map(|s| s.to_string()));
+
+    // v1.6.12: one task per URL, all groups race in parallel; the first usable
+    // body per group wins. Worst-case wall time is now ~one fetch timeout (8 s)
+    // instead of N sources × 8 s serial, and one dead mirror can't stall the rest.
+    let mut groups: Vec<Vec<String>> = SOURCE_GROUPS
+        .iter()
+        .map(|g| g.iter().map(|s| s.to_string()).collect())
+        .collect();
+    if !urls.is_empty() {
+        groups = vec![urls.to_vec()]; // explicit urls (not used by the UI today)
     }
-    // custom source first (highest priority)
     if let Some(c) = &custom {
         if !c.trim().is_empty() {
-            list.insert(0, c.trim().to_string());
+            groups.insert(0, vec![c.trim().to_string()]); // custom source: highest priority
         }
     }
-    for url in &list {
-        match fetch_url(url).await {
-            Ok(body) => {
-                text_all.push_str(&body);
-                text_all.push('\n');
-                if text_all.len() > 6 * 1024 * 1024 {
-                    break;
-                }
+
+    let mut futs = Vec::new();
+    for (gi, list) in groups.iter().enumerate() {
+        for u in list {
+            let u = u.clone();
+            futs.push(tokio::spawn(async move {
+                let r = fetch_url(&u).await;
+                (gi, u, r)
+            }));
+        }
+    }
+    let mut best: Vec<Option<String>> = vec![None; groups.len()];
+    for f in futs {
+        if let Ok((gi, url, Ok(txt))) = f.await {
+            // "usable" = actually contains proxy URIs (a 200 with an HTML error
+            // page or an empty mirror answer must not win the group)
+            if txt.contains("://") && best[gi].is_none() {
+                crate::sysproxy::log_line(&format!(
+                    "fetch: group {} ok — {} bytes from {}",
+                    gi,
+                    txt.len(),
+                    url
+                ));
+                best[gi] = Some(txt);
             }
-            Err(_) => continue,
         }
     }
+    let text_all: String = best
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join("\n");
+
     let parsed: Vec<Server> = uri::parse_lines(&text_all);
     let mut servers: Vec<Server> = parsed
         .iter()
@@ -686,6 +735,24 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
     // cap list size for UI
     servers.truncate(400);
     let n = servers.len();
+
+    // v1.6.12 CRITICAL GUARD: a failed/empty refresh must NEVER wipe a good
+    // list. (This is exactly what produced the user's "server error": boot
+    // called fetchServers, every source 404'd, the empty result REPLACED the
+    // embedded seed list, connect then failed with "no candidates".)
+    if n == 0 {
+        let have = shared.servers.lock().unwrap().len();
+        if have > 0 {
+            crate::sysproxy::log_line(&format!(
+                "fetch: 0 usable configs from all sources — keeping the current {} servers",
+                have
+            ));
+            shared.fetching.store(false, Ordering::SeqCst);
+            shared.repaint();
+            return;
+        }
+    }
+
     *shared.pings.lock().unwrap() = vec![u32::MAX; n];
     *shared.servers.lock().unwrap() = servers;
     shared.servers_gen.fetch_add(1, Ordering::SeqCst);

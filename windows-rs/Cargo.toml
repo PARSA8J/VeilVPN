@@ -1,6 +1,6 @@
 [package]
 name = "veilvpn"
-version = "1.6.11"
+version = "1.6.12"
 edition = "2021"
 description = "Mehrveil — native Windows client (Rust core + WebView2 UI). See nothing. Be invisible."
 license = "MIT"
