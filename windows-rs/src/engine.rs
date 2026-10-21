@@ -304,6 +304,10 @@ async fn connect_with_failover(
     let probe = Addr::new("cp.cloudflare.com".into(), 80);
     let mut tried = 0usize;
     let mut last_err = String::from("no candidates");
+    crate::sysproxy::log_line(&format!(
+        "connect: gen={} candidates={} (first: {}:{})",
+        gen, candidates.len(), selected.host, selected.port
+    ));
     // v1.6.11: probe in parallel waves of 6 — first success wins. Serial probing
     // of dead nodes wasted up to a minute; waves cut that to seconds.
     for wave in candidates.chunks(6) {
@@ -333,6 +337,10 @@ async fn connect_with_failover(
             }
         }
         tried += wave.len();
+        crate::sysproxy::log_line(&format!(
+            "connect: wave {}/{} tried — last_err: {}",
+            tried, candidates.len(), last_err
+        ));
         if let Some((cand, ip)) = won {
             if gen != shared.connect_gen.load(Ordering::SeqCst) {
                 return; // cancelled while probing
@@ -363,12 +371,20 @@ async fn connect_with_failover(
                     }
                 });
             }
+            crate::sysproxy::log_line(&format!(
+                "connect: SUCCESS via {}:{} ({} ms)",
+                cand.host, cand.port, ms.map(|v| v.to_string()).unwrap_or_else(|| "?".into())
+            ));
             return;
         }
         let mut st = shared.status();
         st.last_error = Some(last_err.clone());
         shared.set_status(st);
     }
+    crate::sysproxy::log_line(&format!(
+        "connect: FAILED — {}/{} candidates dead; last: {}",
+        tried, candidates.len(), last_err
+    ));
     let mut st = shared.status();
     st.phase = Phase::Error(format!(
         "{} of {} candidates failed — last: {}",
@@ -766,15 +782,21 @@ async fn fetch_sources(shared: &Arc<Shared>, urls: &[String], custom: Option<Str
 /// v1.6.11: honest list — keep only transports this build can actually dial.
 /// REALITY/gRPC/KCP/QUIC/H2 configs TCP-ping fine but can never connect; they
 /// used to rank as "fast" candidates and guarantee connect failures.
+/// v1.6.13 additions:
+///  • vless with a flow param (xtls-rprx-vision & co) needs XTLS padding —
+///    plain VLESS can never complete it → filter instead of guaranteeing a
+///    dead candidate.
+///  • trojan with security=none: the trojan spec is TLS-only and dial_trojan
+///    always TLS-wraps; a plaintext trojan endpoint would always fail.
 fn transport_supported(s: &Server) -> bool {
     match s.proto.as_str() {
         "vless" => {
-            matches!(s.security.as_str(), "none" | "tls")
+            s.flow.is_empty()
+                && matches!(s.security.as_str(), "none" | "tls")
                 && matches!(s.net.as_str(), "tcp" | "ws")
         }
         "trojan" => {
-            matches!(s.security.as_str(), "tls" | "none")
-                && matches!(s.net.as_str(), "tcp" | "ws")
+            s.security == "tls" && matches!(s.net.as_str(), "tcp" | "ws")
         }
         "ss" => true,
         _ => false,

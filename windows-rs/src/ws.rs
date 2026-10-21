@@ -48,7 +48,6 @@ pub async fn connect<S: AsyncRW>(
         req.push_str(&format!("{}: {}\r\n", k, v));
     }
     req.push_str("\r\n");
-    eprintln!("WS-DBG: sending req {} bytes", req.len());
     stream.write_all(req.as_bytes()).await?;
     stream.flush().await?;
 

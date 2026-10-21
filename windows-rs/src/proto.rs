@@ -8,8 +8,9 @@ use crate::ws::WsStream;
 use aes_gcm::aead::{AeadInPlace, KeyInit};
 use aes_gcm::{Aes128Gcm, Aes256Gcm, Nonce};
 use hkdf::Hkdf;
+use md5::Md5;
 use sha1::Sha1;
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha224};
 use std::pin::Pin;
 use std::task::Poll;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -117,11 +118,12 @@ async fn dial_vless(srv: &Server, dst: &Addr) -> std::io::Result<BoxStream> {
 
 async fn ws_over(srv: &Server, boxed: Box<dyn AsyncReadWrite>) -> std::io::Result<Box<dyn AsyncReadWrite>> {
     let ws_host = if srv.ws_host.is_empty() { srv.host.clone() } else { srv.ws_host.clone() };
-    let extra: Vec<(&str, String)> = if srv.ws_host.is_empty() {
-        vec![]
-    } else {
-        vec![("Host", srv.ws_host.clone())]
-    };
+    // v1.6.13 FIX: do NOT add a second "Host" header — ws::connect() already
+    // writes Host: <ws_host>. The old code sent Host twice for every vless+ws
+    // config that carries a host= param (61% of the shipped list); CDNs and
+    // v2ray's HTTP layer reject duplicate Host with 400 → those nodes could
+    // NEVER connect even though their TCP ping was fine.
+    let extra: Vec<(&str, String)> = vec![];
     let ws: WsStream<Box<dyn AsyncReadWrite>> = crate::ws::connect(boxed, &ws_host, &srv.ws_path, &extra).await?;
     Ok(Box::new(ws))
 }
@@ -152,17 +154,33 @@ async fn write_vless_header(s: &mut dyn AsyncReadWrite, uid: &[u8; 16], dst: &Ad
 
 /* ------------------------------- TROJAN -------------------------------- */
 
+/// v1.6.13 FIX: the trojan protocol mandates hex(SHA224(password)) — 56 hex
+/// chars (trojan-gfw/trojan spec). The old code hashed with SHA-256 (64 chars)
+/// so EVERY real trojan server rejected the password and closed the connection
+/// (~20% of the shipped list was dead on arrival). Mock e2e servers mirrored
+/// the same bug, which is why tests stayed green.
+pub fn trojan_password_hex(password: &str) -> String {
+    let mut hasher = Sha224::new();
+    hasher.update(password.as_bytes());
+    hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect()
+}
+
 async fn dial_trojan(srv: &Server, dst: &Addr) -> std::io::Result<BoxStream> {
     let tcp = tcp_connect(&srv.host, srv.port, 8000).await?;
-    let tls_s = tls_wrap(srv, tcp).await?;
-    let mut s: Box<dyn AsyncReadWrite> = Box::new(tls_s);
+    let tls_s = tls_wrap(srv, tcp).await?; // trojan spec: always over TLS
+    let inner: Box<dyn AsyncReadWrite> = Box::new(tls_s);
 
-    let mut hasher = Sha256::new();
-    hasher.update(srv.uuid.as_bytes());
-    let hex: String = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect();
+    // v1.6.13 FIX: honor net=ws (trojan-go style ws transport). The old code
+    // ignored it and pushed the raw trojan head straight into the HTTP server
+    // → connection reset on every trojan+ws node (12% of the list).
+    let mut s: Box<dyn AsyncReadWrite> = if srv.net == "ws" {
+        ws_over(srv, inner).await?
+    } else {
+        inner
+    };
 
     let mut head: Vec<u8> = Vec::with_capacity(80);
-    head.extend_from_slice(hex.as_bytes());
+    head.extend_from_slice(trojan_password_hex(&srv.uuid).as_bytes());
     head.extend_from_slice(b"\r\n");
     let (atyp, addr) = dst.atyp_and_addr();
     head.push(atyp);
@@ -257,6 +275,27 @@ pub struct SsStream {
     rx_pending: Option<usize>,
 }
 
+/// Shadowsocks spec key derivation (OpenSSL-compatible EVP_BytesToKey, MD5,
+/// count=1): master_key = EVP(password), then subkey = HKDF-SHA1(salt, master).
+/// v1.6.13 FIX: the old code fed the RAW PASSWORD into HKDF, so the derived
+/// subkey never matched the server's → AEAD open failed on every ss node.
+pub fn evp_bytes_to_key(password: &str, key_len: usize) -> Vec<u8> {
+    let mut out: Vec<u8> = Vec::with_capacity(key_len + 16);
+    let mut prev: Vec<u8> = Vec::new();
+    let mut i: u32 = 1;
+    while out.len() < key_len {
+        let mut h = Md5::new();
+        h.update(&prev);
+        h.update(password.as_bytes());
+        h.update(i.to_be_bytes());
+        prev = h.finalize().to_vec();
+        out.extend_from_slice(&prev);
+        i += 1;
+    }
+    out.truncate(key_len);
+    out
+}
+
 impl SsStream {
     async fn new(mut inner: Box<dyn AsyncReadWrite>, srv: &Server, dst: &Addr) -> std::io::Result<Self> {
         let key_len: usize = match srv.method.as_str() {
@@ -271,7 +310,8 @@ impl SsStream {
         };
         let mut salt = vec![0u8; key_len];
         rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut salt);
-        let h = Hkdf::<Sha1>::new(Some(salt.as_slice()), srv.password.as_bytes());
+        let master = evp_bytes_to_key(&srv.password, key_len);
+        let h = Hkdf::<Sha1>::new(Some(salt.as_slice()), &master);
         let mut subkey = vec![0u8; key_len];
         h.expand(b"ss-subkey", &mut subkey)
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "hkdf expand"))?;
@@ -415,4 +455,40 @@ async fn dial_ss(srv: &Server, dst: &Addr) -> std::io::Result<BoxStream> {
 
 pub fn method_supported(m: &str) -> bool {
     matches!(m, "aes-128-gcm" | "aes-256-gcm")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hex_of(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{:02x}", x)).collect()
+    }
+
+    /// v1.6.13 regression: trojan head MUST be SHA-224 (56 hex chars).
+    /// Vector cross-checked with python hashlib.sha224.
+    #[test]
+    fn trojan_password_hash_is_sha224() {
+        let h = trojan_password_hex("passw0rd");
+        assert_eq!(h.len(), 56, "trojan hash must be 56 hex chars (SHA-224), got {}", h.len());
+        assert_eq!(h, "4fc07c8146ff8d20695edb3d980fab332183eb02af267d5d68de188d");
+    }
+
+    /// v1.6.13 regression: EVP_BytesToKey(MD5, count=1) must match the
+    /// Shadowsocks spec (openssl -kdf / shadowsocks-go KDF.EVPBytesToKey).
+    #[test]
+    fn evp_bytes_to_key_vectors() {
+        assert_eq!(
+            evp_bytes_to_key("password", 32).len(),
+            32
+        );
+        assert_eq!(
+            hex_of(&evp_bytes_to_key("password", 32)),
+            "768ac7a71a44dbabff9c28948b1632e08518d4c48631f93328d538413fb4468c"
+        );
+        assert_eq!(
+            hex_of(&evp_bytes_to_key("secret123", 16)),
+            "f975f0a14ddfe40a06fa57a5aead29d0"
+        );
+    }
 }

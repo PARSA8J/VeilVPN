@@ -13,6 +13,7 @@ pub struct Server {
     pub security: String, // none | tls
     pub sni: String,
     pub allow_insecure: bool,
+    pub flow: String,    // vless flow (xtls-rprx-vision…) — empty = plain
     pub net: String,     // tcp | ws
     pub ws_path: String,
     pub ws_host: String,
@@ -177,6 +178,7 @@ pub fn parse_uri(uri: &str) -> Option<Server> {
                 s.sni = get("host");
             }
             s.allow_insecure = matches!(get("allowInsecure").as_str(), "1" | "true");
+            s.flow = get("flow");
             let n = get("type");
             s.net = if n.is_empty() { "tcp".into() } else { n };
             s.ws_path = get("path");

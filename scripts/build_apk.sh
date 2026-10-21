@@ -13,9 +13,9 @@ ASSETS="$ROOT/android/app/assets"
 OUT="$ROOT/android/build"
 APK_DIR="${OUT_DIR:-$ROOT}"
 mkdir -p "$APK_DIR" && APK_DIR="$(cd "$APK_DIR" && pwd)"   # absolute: script cd's internally
-APK="$APK_DIR/Mehrveil-1.6.12.apk"
-VER_NAME=1.6.12
-VER_CODE=23
+APK="$APK_DIR/Mehrveil-1.6.13.apk"
+VER_NAME=1.6.13
+VER_CODE=24
 
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/dex" "$ASSETS"
 

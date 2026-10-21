@@ -267,8 +267,10 @@ async fn mock_trojan_tls(l: TcpListener) {
                 Ok(s) => s,
                 Err(_) => return,
             };
-            // head: hex(64) CRLF atyp addr port CRLF
-            let mut head = vec![0u8; 64];
+            // head: hex(SHA224(password)) = 56 hex chars CRLF atyp addr port CRLF
+            // (v1.6.13: mock updated to the REAL trojan spec — the old mock read
+            //  64 chars and mirrored the client's SHA-256 bug)
+            let mut head = vec![0u8; 56];
             if s.read_exact(&mut head).await.is_err() {
                 return;
             }
@@ -325,7 +327,13 @@ struct MockSs {
 
 impl MockSs {
     fn new(pass: &[u8], salt: &[u8]) -> Self {
-        let h = Hkdf::<Sha1>::new(Some(salt), pass);
+        // v1.6.13: derive the subkey per the REAL shadowsocks spec —
+        // master = EVP_BytesToKey(MD5, pass), subkey = HKDF-SHA1(salt, master).
+        // (The old mock fed the raw password into HKDF and mirrored the
+        // client bug — the roundtrip proved nothing about interop.)
+        let pass_str = std::str::from_utf8(pass).expect("mock password utf8");
+        let master = proto::evp_bytes_to_key(pass_str, 32);
+        let h = Hkdf::<Sha1>::new(Some(salt), &master);
         let mut subkey = [0u8; 32];
         h.expand(b"ss-subkey", &mut subkey).unwrap();
         Self { c: Aes256Gcm::new_from_slice(&subkey).unwrap(), counter: 0 }
@@ -461,4 +469,139 @@ async fn ss_aead_roundtrip() {
         .expect("big timeout")
         .unwrap();
     assert_eq!(got, big);
+}
+
+/* --------------------- Trojan+WS mock (v1.6.13) ------------------------- */
+
+async fn mock_trojan_ws(l: TcpListener) {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let ck = rcgen::generate_simple_self_signed(vec!["mock.tj".to_string()]).expect("rcgen");
+    let cert_der = ck.cert.der().clone();
+    let key_der = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        ck.key_pair.serialize_der(),
+    ));
+    let cfg = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![cert_der], key_der)
+        .expect("server cert");
+    let acceptor = tokio_rustls::TlsAcceptor::from(std::sync::Arc::new(cfg));
+    loop {
+        let (tcp, _) = match l.accept().await {
+            Ok(x) => x,
+            Err(_) => return,
+        };
+        let acceptor = acceptor.clone();
+        tokio::spawn(async move {
+            let mut s = match acceptor.accept(tcp).await {
+                Ok(s) => s,
+                Err(_) => return,
+            };
+            // ws handshake over TLS
+            let mut head = Vec::new();
+            let mut buf = [0u8; 1024];
+            loop {
+                let n = match s.read(&mut buf).await {
+                    Ok(0) => return,
+                    Ok(n) => n,
+                    Err(_) => return,
+                };
+                head.extend_from_slice(&buf[..n]);
+                if head.windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let text = String::from_utf8_lossy(&head);
+            let key = text
+                .lines()
+                .find_map(|l| l.strip_prefix("Sec-WebSocket-Key:"))
+                .map(|v| v.trim().to_string())
+                .unwrap_or_default();
+            let resp = format!(
+                "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n",
+                ws_accept(&key)
+            );
+            if s.write_all(resp.as_bytes()).await.is_err() {
+                return;
+            }
+            // first frame carries the trojan head (56-hex + CRLF + target + CRLF):
+            // read it with a generic masked-frame reader and VALIDATE the hash length.
+            if let Some((op, payload)) = read_ws_frame(&mut s).await {
+                if op != 0x2 || payload.len() < 57 || &payload[56..58] != b"\r\n" {
+                    return; // head not per spec
+                }
+            } else {
+                return;
+            }
+            // then: masked frame echo server
+            loop {
+                let Some((op, payload)) = read_ws_frame(&mut s).await else { return };
+                if op == 0x8 {
+                    return;
+                }
+                if op == 0x1 || op == 0x2 {
+                    let mut frame = vec![0x82u8];
+                    if payload.len() < 126 {
+                        frame.push(payload.len() as u8);
+                    } else {
+                        frame.push(126);
+                        frame.extend_from_slice(&(payload.len() as u16).to_be_bytes());
+                    }
+                    frame.extend_from_slice(&payload);
+                    if s.write_all(&frame).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        });
+    }
+}
+
+async fn read_ws_frame<S>(s: &mut S) -> Option<(u8, Vec<u8>)>
+where
+    S: tokio::io::AsyncRead + Unpin,
+{
+    use tokio::io::AsyncReadExt;
+    let mut h2 = [0u8; 2];
+    s.read_exact(&mut h2).await.ok()?;
+    let opcode = h2[0] & 0x0F;
+    let masked = h2[1] & 0x80 != 0;
+    let mut len = (h2[1] & 0x7F) as usize;
+    if len == 126 {
+        let mut e = [0u8; 2];
+        s.read_exact(&mut e).await.ok()?;
+        len = u16::from_be_bytes(e) as usize;
+    } else if len == 127 {
+        let mut e = [0u8; 8];
+        s.read_exact(&mut e).await.ok()?;
+        len = u64::from_be_bytes(e) as usize;
+    }
+    // wire order per RFC 6455: [header][mask(4)][payload]
+    let mut m = [0u8; 4];
+    if masked {
+        s.read_exact(&mut m).await.ok()?;
+    }
+    let mut payload = vec![0u8; len];
+    s.read_exact(&mut payload).await.ok()?;
+    if masked {
+        for (i, b) in payload.iter_mut().enumerate() {
+            *b ^= m[i % 4];
+        }
+    }
+    Some((opcode, payload))
+}
+
+#[tokio::test]
+async fn trojan_ws_roundtrip() {
+    let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = l.local_addr().unwrap().port();
+    tokio::spawn(mock_trojan_ws(l));
+    let mut s = srv_insecure("trojan", port, "mock.tj");
+    s.net = "ws".into();
+    s.ws_path = "/tjws".into();
+    let dst = Addr::new("echo.test".into(), 80);
+    let mut st = tokio::time::timeout(std::time::Duration::from_secs(5), proto::dial(&s, &dst))
+        .await
+        .expect("trojan-ws dial timeout")
+        .unwrap();
+    roundtrip(&mut *st).await;
 }
