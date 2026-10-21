@@ -25,13 +25,13 @@ Real VPN core built-in — no v2rayNG, no extra apps, no clutter.
 
 | Platform | File | Requirement |
 |---|---|---|
-| 📱 Android | [Mehrveil-1.6.12.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.apk) | Android 5.0+ (all CPUs) |
-| 🖥️ Windows | [Mehrveil-1.6.12.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.exe) | Windows 10/11 64-bit |
+| 📱 Android | [Mehrveil-1.6.13.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.apk) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.apk) | Android 5.0+ (all CPUs) |
+| 🖥️ Windows | [Mehrveil-1.6.13.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.exe) — **direct link** · [GitHub release](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.exe) | Windows 10/11 64-bit |
 
-> ⚠️ **Old releases have been removed** — only **v1.6.12** is distributed. Download **only** files named `Mehrveil-1.6.12.apk` / `Mehrveil-1.6.12.exe`.
-> ✅ File integrity — the correct APK is exactly **123,986 bytes (~121 KB)** · SHA-256 `da6df622f692044d7356ecb0edf2c157ee2301ad15ae8e8756565003fa25f179`. A different size = corrupted download → re-download from the direct link.
-> 🪟 Windows EXE integrity — **1,686,528 bytes (~1.6 MB)** · SHA-256 `6336c1ff2f773ac16b810c34cf2a146e7862813e91cfbc90c693902098b3af57`.
-> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.12** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.12 again.
+> ⚠️ **Old releases have been removed** — only **v1.6.13** is distributed. Download **only** files named `Mehrveil-1.6.13.apk` / `Mehrveil-1.6.13.exe`.
+> ✅ File integrity — the correct APK is exactly **123,986 bytes (~121 KB)** · SHA-256 `b6861f66dc1f47617e3b55d2053609b6d9d827d29da0771b1d40a95fc398c0eb`. A different size = corrupted download → re-download from the direct link.
+> 🪟 Windows EXE integrity — **1,690,624 bytes (~1.6 MB)** · SHA-256 `d363501e8c38621325c193ae22a9daedc03ac4cc73e16ba1249526c1c2b4a0ed`.
+> 🧹 **Running an old file?** If the app window shows a version older than **v1.6.13** in its footer (e.g. `v1.5.4 - MIT`), you launched an old downloaded installer — delete every old Mehrveil/VeilVPN file from your Downloads folder and download v1.6.13 again.
 
 > 💡 If GitHub is blocked on your network, turn on any temporary proxy, or grab the files from the [Releases page](../../releases). The latest version always lives at `releases/latest`.
 
@@ -75,8 +75,19 @@ If the installer shows the app name + icon but still says **«App not installed�
 </details>
 
 ### Windows
-1. Download `Mehrveil-1.6.12.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
+1. Download `Mehrveil-1.6.13.exe` and run it — no installer. The UI uses Windows' built-in WebView2 engine (present on Windows 11 and nearly all Windows 10 systems; if missing, the app shows a direct download link).
 2. Tap connect; the **system proxy** is configured automatically, and removed cleanly on disconnect.
+
+## 🆕 What's new in v1.6.13 — "can't connect" is fixed (protocols now spec-correct)
+
+- **Why every connect failed (real root cause):** pings looked healthy because raw TCP connect worked — but the tunnel **handshake** was broken for ~89% of every candidate list. Four protocol bugs:
+  1. **Trojan password hash was SHA-256** — the trojan spec mandates **SHA-224** (56 hex chars); every real trojan server rejected the password (~20% of the list).
+  2. **Trojan over WebSocket was never wired** — the raw head went straight into the HTTP server → instant reset (~12% of the list).
+  3. **Shadowsocks skipped `EVP_BytesToKey`** — the raw password went into HKDF instead of the spec's MD5-derived master key → every ss node failed AEAD decryption.
+  4. **vless+ws with a `host=` param sent a duplicate `Host:` header** — CDNs reject it with 400. The biggest one: **61% of the list**.
+- **Honest filtering added:** vless configs with `flow=xtls-rprx-vision` and plaintext-trojan configs can never complete with a plain VLESS/Trojan implementation — they are filtered out instead of being tried as guaranteed-dead candidates.
+- **Connect diagnostics in the log:** every connect attempt now logs candidates, per-wave errors and the outcome to `%APPDATA%\Mehrveil\log.txt` (view with `Mehrveil.exe --diag`).
+- **Verified by tests, not hope:** 30 automated tests green — SHA-224 and EVP_BytesToKey vectors cross-checked against the specs, plus a real TLS+WS trojan roundtrip. The test mocks themselves had mirrored the client bugs (which is exactly how this slipped through); they now follow the specs.
 
 ## 🆕 What's new in v1.6.12 — the "server error" fix
 
@@ -111,6 +122,17 @@ If the installer shows the app name + icon but still says **«App not installed�
 - **Fail-fast diagnostics stay:** `%APPDATA%\Mehrveil\log.txt` startup log, `Mehrveil.exe --diag`, native error dialogs, single-instance guard.
 - **One honest requirement:** Windows 10/11 with the WebView2 Runtime (pre-installed on Windows 11 and on virtually all updated Windows 10 systems). If it is missing, the app tells you exactly what to install instead of showing a broken window. The EXE is now also ~4× smaller because the UI engine ships with Windows.
 
+
+### 🆕 v1.6.13 چه چیزی عوض شد؟ (رفع «کانکت نمیشه»)
+
+- **چرا اتصال هرگز کامل نمی‌شد (علت واقعی):** پینگ‌ها سالم به نظر می‌رسیدند چون اتصالِ TCP برقرار می‌شد — ولی خودِ **دست‌دادنِ تونل** برای حدود ۸۹٪ لیست خراب بود. چهار باگ پروتکلی:
+  1. **هش پسورد تروجان SHA-256 بود** — مشخصاتِ تروجان **SHA-224** (۵۶ کاراکتر هگز) می‌خواهد؛ هر سرور واقعی پسورد را رد می‌کرد (حدود ۲۰٪ لیست).
+  2. **تروجان روی WebSocket وصل نمی‌شد** — هدرِ خام مستقیم به سرور HTTP می‌رفت ← ریستِ فوری (حدود ۱۲٪ لیست).
+  3. **Shadowsocks از `EVP_BytesToKey` رد می‌شد** — پسوردِ خام به HKDF می‌رفت؛ همهٔ گره‌های ss در رمزگشایی AEAD شکست می‌خوردند.
+  4. **vless+ws با پارامتر `host=` دو هدرِ `Host:` می‌فرستاد** — CDN ها با ۴۰۰ رد می‌کنند؛ بزرگ‌ترین باگ: **۶۱٪ لیست**.
+- **فیلترِ صادقانه:** کانفیگ‌های `flow=xtls-rprx-vision` و تروجانِ بدون TLS با پیاده‌سازی سادهٔ ما هرگز کامل نمی‌شوند — حالا فیلتر می‌شوند و دیگر به‌عنوان کاندیدای قطعاًمرده امتحان نمی‌شوند.
+- **لاگِ عیب‌یابی اتصال:** هر تلاشِ اتصال حالا کاندیداها، خطای هر موج و نتیجه را در `%APPDATA%\Mehrveil\log.txt` می‌نویسد (با `Mehrveil.exe --diag` ببینید).
+- **راستی‌آزمایی با تست، نه امید:** ۳۰ تست خودکار سبز — بردارهای SHA-224 و EVP_BytesToKey و یک رفت‌وبرگشت واقعی تروجان روی TLS+WS. ماک‌های تست هم به مشخصات اصلاح شدند (قبلاً همان باگ‌های کلاینت را کپی کرده بودند — برای همین متوجه نشده بودیم).
 
 ### 🆕 v1.6.12 چه چیزی عوض شد؟ (رفع «ارور سرور»)
 
@@ -163,13 +185,13 @@ Only Java + Python needed — `setup_tools.sh` downloads the rest (aapt2, ecj, d
 
 ```bash
 bash scripts/setup_tools.sh
-bash scripts/build_apk.sh     # -> Mehrveil-1.6.12.apk
+bash scripts/build_apk.sh     # -> Mehrveil-1.6.13.apk
 ```
 
 ### Windows (Rust core + WebView2 shell — MSVC)
 ```bash
 cd windows-rs && cargo test        # e2e protocol tests + UI-bridge contract test
-cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.12.exe  (needs the MSVC toolchain — as on windows-latest CI)
+cd .. && bash scripts/build_exe.sh # -> Mehrveil-1.6.13.exe  (needs the MSVC toolchain — as on windows-latest CI)
 ```
 
 ### Server seed list
@@ -201,8 +223,8 @@ MIT — completely free, use it however you like.
 
 **Mehrveil** یک کلاینت VPN متن‌باز و رایگان برای **اندروید و ویندوز** با تم حرفه‌ای **Liquid Glass** است — هستهٔ VPN واقعی داخل خود برنامه، بدون نیاز به هیچ اپ دیگری.
 
-- 📱 **اندروید** (`Mehrveil-1.6.12.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
-- 🖥️ **ویندوز** (`Mehrveil-1.6.12.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
+- 📱 **اندروید** (`Mehrveil-1.6.13.apk`) — VpnService بومی + استک TCP/IP یوزر-اسپیس + UI شیشه‌ای؛ بدون v2rayNG و برنامهٔ جانبی.
+- 🖥️ **ویندوز** (`Mehrveil-1.6.13.exe`) — هستهٔ VPN کاملاً **نیتیو Rust** داخل خود exe (بدون هیچ اپ جانبی) + رابط Liquid Glass با موتور **WebView2 ویندوز** (رندر DirectComposition — روی هر GPU/درایوری درست نمایش داده می‌شود) + ست‌شدن خودکار پروکسی سیستم.
 - 📡 **سرورها با پرچم، اسم کشور و پینگ واقعی** — لیست از قبل داخل برنامه است + به‌روزرسانی زنده؛ پینگ هر سرور واقعاً اندازه‌گیری می‌شود و به‌صورت پیش‌فرض **۲۴ سرور سریع‌تر** را می‌بینید.
 - 📊 **آمار واقعی** — سرعت و پینگ از شمارنده‌های واقعی تونل، نه عدد تقلبی.
 - 🔁 Failover خودکار · 🔒 ضد DNS leak · 🌍 ۱۶ زبان (پیش‌فرض انگلیسی) · ⚙️ سابسکریپشن دلخواه
@@ -214,12 +236,12 @@ MIT — completely free, use it however you like.
 
 | پلتفرم | فایل | نیاز |
 |---|---|---|
-| 📱 اندروید | [Mehrveil-1.6.12.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.apk) | اندروید ۵+ |
-| 🖥️ ویندوز | [Mehrveil-1.6.12.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
+| 📱 اندروید | [Mehrveil-1.6.13.apk](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.apk) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.apk) | اندروید ۵+ |
+| 🖥️ ویندوز | [Mehrveil-1.6.13.exe](https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.exe) — **لینک مستقیم** · [ریلیز گیت‌هاب](https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.exe) | ویندوز ۱۰/۱۱ ۶۴ بیتی |
 
-> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.12** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.12.apk` / `Mehrveil-1.6.12.exe` را دانلود کن.
+> ⚠️ **ریلیزهای قدیمی حذف شدند** — فقط **v1.6.13** توزیع می‌شود. فقط فایل‌های `Mehrveil-1.6.13.apk` / `Mehrveil-1.6.13.exe` را دانلود کن.
 > ✅ کنترل سلامت فایل — فایل درست دقیقاً **۱۱۹٬۸۹۰ بایت (~۱۱۷ کیلوبایت)** است · اگر حجم فایل دانلودشده فرق داشت، دانلود ناقص بوده → از لینک مستقیم دوباره بگیر.
-> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.12** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.12 را دوباره دانلود کن.
+> 🧹 **فایل قدیمی اجرا کرده‌ای؟** اگر پایین پنجرهٔ برنامه نسخه‌ای قدیمی‌تر از **v1.6.13** نوشته (مثلاً `v1.5.4 - MIT`)، یعنی فایل نصبی قدیمی را باز کرده‌ای — همهٔ فایل‌های قدیمی Mehrveil/VeilVPN را از پوشهٔ Downloads پاک کن و v1.6.13 را دوباره دانلود کن.
 
 ### ❓ «App not installed» — عیب‌یابی
 

@@ -104,10 +104,10 @@
       <span class="badge">🌍 16 languages</span>
     </div>
     <div class="dl">
-      <a class="start-btn" href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.apk" download>
+      <a class="start-btn" href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.apk" download>
         <span class="ic">🤖</span><span>Android APK<small>Android 5.0+ · direct download · 121 KB</small></span>
       </a>
-      <a class="start-btn" href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.exe" download>
+      <a class="start-btn" href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.exe" download>
         <span class="ic">🪟</span><span>Windows EXE<small>Windows 10/11 64-bit · Rust core + WebView2 · ~1.6 MB</small></span>
       </a>
     </div>
@@ -127,16 +127,17 @@
   </section>
 
   <section class="glass">
-    <h2>📥 Download — v1.6.12</h2>
+    <h2>📥 Download — v1.6.13</h2>
     <table>
-      <tr><td>🤖 <b>Android</b> (APK)</td><td><a href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.apk" download>Mehrveil-1.6.12.apk</a> — <b>direct link</b> · <a href="https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.apk">GitHub release</a></td></tr>
-      <tr><td>🪟 <b>Windows</b> (EXE)</td><td><a href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.12.exe" download>Mehrveil-1.6.12.exe</a> — <b>direct link</b> · <a href="https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.12/Mehrveil-1.6.12.exe">GitHub release</a></td></tr>
+      <tr><td>🤖 <b>Android</b> (APK)</td><td><a href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.apk" download>Mehrveil-1.6.13.apk</a> — <b>direct link</b> · <a href="https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.apk">GitHub release</a></td></tr>
+      <tr><td>🪟 <b>Windows</b> (EXE)</td><td><a href="https://parsa8j.github.io/VeilVPN/Mehrveil-1.6.13.exe" download>Mehrveil-1.6.13.exe</a> — <b>direct link</b> · <a href="https://github.com/PARSA8J/VeilVPN/releases/download/v1.6.13/Mehrveil-1.6.13.exe">GitHub release</a></td></tr>
       <tr><td>🗂 <b>All releases</b></td><td><a href="https://github.com/PARSA8J/VeilVPN/releases">github.com/PARSA8J/VeilVPN/releases</a></td></tr>
     </table>
-    <p style="font-size:12px;color:#77777f;margin-top:12px">✅ File check — the correct APK is exactly <b>123,986 bytes</b> (~121 KB). If your downloaded file has a different size, the download was corrupted — please re-download from the direct link.<br>APK SHA-256: <code>da6df622f692044d7356ecb0edf2c157ee2301ad15ae8e8756565003fa25f179</code><br>EXE SHA-256: <code>6336c1ff2f773ac16b810c34cf2a146e7862813e91cfbc90c693902098b3af57</code></p>
-    <p style="font-size:12px;color:#77777f">⚠️ Old file? If the app window shows a version <b>older than v1.6.12</b> in its footer (e.g. v1.5.4), you launched an old downloaded file — delete every old Mehrveil/VeilVPN installer from your Downloads folder and download <b>Mehrveil-1.6.12</b> again.</p>
+    <p style="font-size:12px;color:#77777f;margin-top:12px">✅ File check — the correct APK is exactly <b>123,986 bytes</b> (~121 KB). If your downloaded file has a different size, the download was corrupted — please re-download from the direct link.<br>APK SHA-256: <code>b6861f66dc1f47617e3b55d2053609b6d9d827d29da0771b1d40a95fc398c0eb</code><br>EXE SHA-256: <code>d363501e8c38621325c193ae22a9daedc03ac4cc73e16ba1249526c1c2b4a0ed</code></p>
+    <p style="font-size:12px;color:#77777f">⚠️ Old file? If the app window shows a version <b>older than v1.6.13</b> in its footer (e.g. v1.5.4), you launched an old downloaded file — delete every old Mehrveil/VeilVPN installer from your Downloads folder and download <b>Mehrveil-1.6.13</b> again.</p>
     <p style="font-size:12px;color:#77777f">«App not installed» even though the app name + icon appear? Your phone is blocking the install — on <b>Samsung</b>: Settings → Security and privacy → <b>Auto Blocker</b> → off. Otherwise disable <b>Play Protect scan</b> (Play Store → Play Protect → gear). More: <a href="https://github.com/PARSA8J/VeilVPN#-install">README install guide</a>.</p>
-    <p style="font-size:12px;color:#77777f"><b>What's new in v1.6.12 — the "server error" fix:</b> the aggregator sources the app pulls fresh servers from had been renamed upstream — 6 of 7 URLs returned 404 and the empty result <i>wiped the built-in server list</i> at every start (that's the error + empty list you saw). Sources are alive again (own Pages sub + gh-proxy + 4 jsDelivr edges racing in parallel, Iran-reachable first), a failed refresh can <b>never</b> erase your list anymore, and the built-in seed was re-verified today: 150 nodes TCP-alive across 27 countries. Refresh now completes in ≈8&nbsp;s instead of up to 56&nbsp;s. Android/Windows share the fix (versionCode 23).</p>
+    <p style="font-size:12px;color:#77777f"><b>What's new in v1.6.13 — the "can't connect" fix:</b> pings looked healthy because raw TCP connect worked — but the tunnel <i>handshake</i> was broken for ~89% of every candidate list. Four protocol bugs, all fixed: the trojan password hash was SHA-256 instead of the spec's SHA-224 (every trojan server rejected it), trojan-over-WebSocket was never wired, Shadowsocks skipped the spec's EVP_BytesToKey key derivation, and vless+ws configs with a <code>host=</code> param sent a duplicate <code>Host:</code> header that CDNs reject with 400 (that alone was 61% of the list). Configs that can never complete (xtls-rprx-vision flow, plaintext trojan) are now filtered out honestly, and every connect attempt logs per-wave diagnostics to <code>%APPDATA%\Mehrveil\log.txt</code> (<code>Mehrveil.exe --diag</code>). Verified by 30 automated tests including spec vectors and a real TLS+WS trojan roundtrip.</p>
+    <p style="font-size:12px;color:#77777f"><b>Previously (v1.6.12):</b> the "server error" fix — live aggregator sources with a parallel mirror network, a failed refresh can never wipe your list, fresh TCP-verified built-in seed (150 nodes, 27 countries).</p>
     <p style="font-size:12px;color:#77777f"><b>v1.6.11 recap:</b> pings stream in with a live <i>testing x/y</i> counter; connect failover probes 24 candidates in parallel waves and is cancellable; REALITY/gRPC/KCP/QUIC configs are dropped at fetch time. Honest errors + 75&nbsp;s watchdog (versionCode 22).</p>
     <p style="font-size:12px;color:#77777f"><b>v1.6.8 recap:</b> the Windows white page was killed for good — the UI engine was replaced. The desktop app now draws its Liquid Glass interface with <b>WebView2</b> (the Chromium engine built into Windows — the same tech that already works in Edge and in the Android app), instead of the GPU rendering paths that white-screened on some machines. The VPN core is still native Rust inside the same EXE, with real byte-counter stats and a true exit-IP check through the tunnel. Diagnostics: <code>%APPDATA%\Mehrveil\log.txt</code>, <code>Mehrveil.exe --diag</code>. Requires the free WebView2 Runtime (built into Windows 11 / most Windows 10 systems — the app shows a download link if missing).</p>
   </section>
